@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>20195123 김동현 - Viewing_perspective</title>
+</head>
+
+<body>
+    <div style="width: 512px; text-align: center;">
+        <input type="radio" id="ortho" name="projection" checked> Orthographic
+        <input type="radio" id="persp" name="projection"> Perspective
+    </div>
+    <div style="width: 512px; background-color: rgb(215,255,255); margin-top: 5px; margin-bottom: 5px;">
+        <center>A and D to rotate left and right<br>
+            S and W to move up and down</center>
+    </div>
+    <script type="x-shader/x-vertex" id="vertexShader">
+        attribute vec4 vColor;
+        varying vec4 fColor; 
+            
+        void main() {
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            fColor = vColor;
+        }
+    </script>
+    <script type="x-shader/x-fragment" id="fragmentShader">
+        precision mediump float;
+        varying vec4 fColor;
+
+        void main() {
+            gl_FragColor = fColor;
+        }
+    </script>
+
+    <script type="x-shader/x-vertex" id="colorVS">
+        void main() {
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); // 포인트니까 1.0
+        }
+    </script>
+    <script type="x-shader/x-fragment" id="colorFS">
+        precision mediump float;
+        uniform vec4 uColor;
+
+        void main() {
+            gl_FragColor = uColor;
+        }
+    </script>
+
+    <script type="importmap">
+        {
+            "imports" : {
+                "three" : "https://unpkg.com/three/build/three.module.js",
+                "three/addons/" : "https://unpkg.com/three/examples/jsm/"
+            }
+        }
+    </script>
+    <script type="module">
+        import * as THREE from 'three';
+        import { TrackballControls } from 'three/addons/controls/TrackballControls.js';
+
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xafafaf);
+
+        let orthoCamera, camera, controls;
+        const cameraPosition = new THREE.Vector3(2, 2, 2);
+
+        const viewLength = 2;
+
+        if (window.innerWidth > window.innerHeight) {
+            const ratio = viewLength * window.innerWidth / window.innerHeight;
+            orthoCamera = new THREE.OrthographicCamera(-ratio, ratio, viewLength, -viewLength, 0, 1000);
+        } else {
+            const ratio = viewLength * window.innerHeight / window.innerWidth;
+            orthoCamera = new THREE.OrthographicCamera(-viewLength, viewLength, ratio, -ratio, 0, 1000);
+        }
+        orthoCamera.position.z = 500;
+
+        //3D perspective
+        const aspectRatio = window.innerWidth / window.innerHeight;
+        const perspCamera = new THREE.PerspectiveCamera(90, aspectRatio, 0.1, 100); // 0.01이 음수되거나 0되면 안되지!!
+        perspCamera.position.z = 2; // 뒤로 두칸 물러남
+
+        camera = orthoCamera;
+        camera.position.copy(cameraPosition);
+
+        const renderer = new THREE.WebGLRenderer();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        controls = new TrackballControls(camera, renderer.domElement);
+        controls.dynamicDampingFactor = 0.1;
+
+        const vertices = new Float32Array([
+            -0.5, -0.5, -0.5,
+            0.5, -0.5, -0.5,
+            0.5, 0.5, -0.5,
+            -0.5, 0.5, -0.5,
+            -0.5, -0.5, 0.5,
+            0.5, -0.5, 0.5,
+            0.5, 0.5, 0.5,
+            -0.5, 0.5, 0.5,
+        ]);
+
+        const colors = new Float32Array([
+            0, 0, 0, 1,
+            1, 0, 0, 1,
+            1, 1, 0, 1,
+            0, 1, 0, 1,
+            0, 0, 1, 1,
+            1, 0, 1, 1,
+            1, 1, 1, 1,
+            0, 1, 1, 1,
+        ]);
+        const indices = [
+            1, 0, 3, 1, 3, 2,
+            2, 3, 7, 2, 7, 6,
+            3, 0, 4, 3, 4, 7,
+            4, 5, 6, 4, 6, 7,
+            5, 4, 0, 5, 0, 1,
+            6, 5, 1, 6, 1, 2,
+        ];
+
+
+        const geometry = new THREE.BufferGeometry();
+        geometry.setIndex(indices);
+        geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+        geometry.setAttribute('vColor', new THREE.Float32BufferAttribute(colors, 4));
+
+        const material = new THREE.ShaderMaterial({
+            vertexShader: document.getElementById("vertexShader").textContent,
+            fragmentShader: document.getElementById("fragmentShader").textContent,
+        });
+        const mesh = new THREE.Mesh(geometry, material);
+        scene.add(mesh);
+
+        const groundVertices = new Float32Array([
+            -10, -1, -10,
+            -10, -1, 10,
+            10, -1, 10,
+            -10, -1, -10,
+            10, -1, 10,
+            10, -1, -10,
+
+        ]);
+
+        const groundGeometry = new THREE.BufferGeometry();
+        groundGeometry.setAttribute('position', new THREE.Float32BufferAttribute(groundVertices, 3));
+
+        const groundMaterial = new THREE.ShaderMaterial({
+            uniforms: {
+                uColor: { value: [0.8, 0.8, 0.8, 1] },
+            },
+            vertexShader: document.getElementById("colorVS").textContent,
+            fragmentShader: document.getElementById("colorFS").textContent,
+        });
+        groundMaterial.polygonOffset = true;
+        groundMaterial.polygonOffsetFactor = 0.01;
+        groundMaterial.polygonOffsetFactor = 1;
+
+        const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+        scene.add(ground);
+
+        const lineVertices = new Float32Array(126);
+        const groundScale = 10;
+        let index = 0;
+        for (let x = -groundScale; x <= groundScale; x += 2) {
+            lineVertices[index++] = x;
+            lineVertices[index++] = -1;
+            lineVertices[index++] = -groundScale;
+            lineVertices[index++] = x;
+            lineVertices[index++] = -1;
+            lineVertices[index++] = groundScale;
+
+            lineVertices[index++] = x + 1;
+            lineVertices[index++] = -1;
+            lineVertices[index++] = groundScale;
+            lineVertices[index++] = x + 1;
+            lineVertices[index++] = -1;
+            lineVertices[index++] = -groundScale;
+        }
+
+        const lineGeometry1 = new THREE.BufferGeometry();
+        lineGeometry1.setAttribute('position', new THREE.Float32BufferAttribute(lineVertices, 3));
+        const line1 = new THREE.Line(lineGeometry1, groundMaterial.clone());
+        line1.material.uniforms.uColor.value = [0, 0, 0, 1.0];
+        scene.add(line1);
+
+        index = 0;
+        for (let z = -groundScale; z <= groundScale; z += 2) {
+            lineVertices[index++] = -groundScale;
+            lineVertices[index++] = -1;
+            lineVertices[index++] = z;
+            lineVertices[index++] = groundScale;
+            lineVertices[index++] = -1;
+            lineVertices[index++] = z;
+
+            lineVertices[index++] = groundScale;
+            lineVertices[index++] = -1;
+            lineVertices[index++] = z + 1;
+            lineVertices[index++] = -groundScale;
+            lineVertices[index++] = -1;
+            lineVertices[index++] = z + 1;
+        }
+
+        const lineGeometry2 = new THREE.BufferGeometry();
+        lineGeometry2.setAttribute('position', new THREE.Float32BufferAttribute(lineVertices, 3));
+        const line2 = new THREE.Line(lineGeometry2, groundMaterial.clone());
+        line2.material.uniforms.uColor.value = [0, 0, 0, 1.0];
+        scene.add(line2);
+
+        const projection = document.getElementsByName("projection");
+        projection.forEach((radio) => {
+            radio.addEventListener("change", (event) => {
+                if (document.getElementById("ortho").checked) {
+                    camera = orthoCamera;
+                    camera.position.copy(cameraPosition);
+                    controls.dispose();
+                    controls = new TrackballControls(camera, renderer.domElement);
+                }
+                else {
+                    camera = perspCamera;
+                    camera.position.copy(cameraPosition);
+                    controls.dispose();
+                    controls = new TrackballControls(camera, renderer.domElement);
+                }
+            });
+        });
+
+        const boundary = { // 그라운드 경계 설정
+            xMin: -9.5,
+            xMax: 9.5,
+            zMin: -9.5,
+            zMax: 9.5
+        };
+
+        window.onkeydown = function (event) {
+            console.log("Key pressed:", event.key);
+            const direction = new THREE.Vector3();
+            let newPos, newX, newZ;
+
+            switch (event.key.toLowerCase()) { 
+                case 'a': 
+                    rotateCameraHorizontally(0.2);
+                    break;
+                case 'd': 
+                    rotateCameraHorizontally(-0.2);
+                    break;
+
+                case 's': 
+                    if (camera === orthoCamera) {
+                        camera.position.y -= 0.5; 
+                        controls.target.y -= 0.5;
+                    } else {
+                        camera.getWorldDirection(direction);
+                        direction.y = 0;
+                        direction.multiplyScalar(0.5); 
+                        newPos = camera.position.clone().sub(direction);
+                        newX = newPos.x;
+                        newZ = newPos.z;
+                        if (newX >= boundary.xMin && newX <= boundary.xMax && newZ >= boundary.zMin && newZ <= boundary.zMax) {
+                            camera.position.sub(direction);
+                            controls.target.sub(direction);
+                        }
+                    }
+                    break;
+
+                case 'w': 
+                    if (camera === orthoCamera) {
+                        camera.position.y += 0.5; 
+                        controls.target.y += 0.5;
+                    } else {
+                        camera.getWorldDirection(direction);
+                        direction.y = 0;
+                        direction.multiplyScalar(0.5);
+                        newPos = camera.position.clone().add(direction);
+                        newX = newPos.x;
+                        newZ = newPos.z;
+                        if (newX >= boundary.xMin && newX <= boundary.xMax && newZ >= boundary.zMin && newZ <= boundary.zMax) {
+                            camera.position.add(direction);
+                            controls.target.add(direction);
+                        }
+                    }
+                    break;
+            }
+            controls.update();
+        };
+
+
+        // window.onkeydown = function (event) {
+        //     console.log("Key pressed:", event.key);
+        //     switch (event.key) {
+
+        //         case 'a':
+        //         case 'A':
+        //             rotateCameraHorizontally(0.1); // 왼쪽으로 회전
+        //             break;
+        //         case 'd':
+        //         case 'D':
+        //             rotateCameraHorizontally(-0.1); // 오른쪽으로 회전
+        //             break;
+
+        //         case 's':
+        //         case 'S':
+        //             if (camera === orthoCamera) {
+        //                 camera.position.y -= 0.5;
+        //                 controls.target.y -= 0.5;
+        //             } else {
+        //                 let forward = new THREE.Vector3();
+        //                 camera.getWorldDirection(forward);
+        //                 forward.y = 0; // y 성분을 무시하여 수평 이동만 하도록 함
+        //                 forward.normalize().multiplyScalar(-0.5); // 뒤로 이동
+        //                 camera.position.add(forward);
+        //                 controls.target.add(forward);
+        //             }
+        //             break;
+
+        //         case 'w':
+        //         case 'W':
+
+        //             if (camera === orthoCamera) {
+        //                 camera.position.y += 0.5;
+        //                 controls.target.y += 0.5;
+        //             } else {
+        //                 let forward = new THREE.Vector3();
+        //                 camera.getWorldDirection(forward);
+        //                 forward.y = 0; // y 성분을 무시하여 수평 이동만 하도록 함
+        //                 forward.normalize().multiplyScalar(0.5); // 앞으로 이동
+        //                 camera.position.add(forward);
+        //                 controls.target.add(forward);
+        //             }
+        //             break;
+        //     }
+        // };
+
+        function rotateCameraHorizontally(angle) {
+            // 전역 Y축을 중심으로 회전할 쿼터니언 생성
+            const quaternion = new THREE.Quaternion();
+            quaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), angle);
+
+            // 카메라의 현재 quaternion에 회전 쿼터니언을 곱함
+            camera.quaternion.multiplyQuaternions(quaternion, camera.quaternion);
+
+            // TrackballControls의 타겟도 조정
+            controls.target.copy(camera.position.clone().add(new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion)));
+
+            // 컨트롤과 렌더러 업데이트
+            controls.update();
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        animate();
+    </script>
+</body>
+
+</html>

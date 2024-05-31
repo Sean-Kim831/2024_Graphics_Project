@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>20195123 김동현 - hexaPyramid</title>
+</head>
+<body>
+    <div>
+        <button id="xButton">Rotate X</button>
+        <button id="yButton">Rotate Y</button>
+        <button id="zButton">Rotate Z</button>
+        <button id="toggleButton">Stop rotation</button>
+    </div>
+    <script type="x-shader/x-vertex" id="vertexShader">
+        attribute vec4 vColor;
+        varying vec4 fColor; 
+        uniform vec3 theta;
+            
+        void main() {
+            //gl_Position = vec4(position, 1.0);
+            vec3 s = sin(theta);
+            vec3 c = cos(theta);
+         
+            //remember
+            mat4 rx = mat4(  1, 0, 0, 0,
+                            0, c.x, -s.x, 0,
+                            0, s.x, c.x, 0,
+                            0, 0, 0, 1 );
+
+            mat4 ry = mat4(  c.y, 0, -s.y, 0,
+                            0, 1, 0, 0,
+                             s.y, 0, c.y, 0,
+                             0, 0, 0, 1 );
+
+            mat4 rz = mat4(  c.z, s.z, 0, 0,
+                            -s.z, c.z, 0, 0,
+                            0, 0, 1, 0,
+                            0, 0, 0, 1 );                 
+    
+
+            gl_Position = rx * ry * rz * vec4(position, 1.0);
+            fColor = vColor;
+        }
+    </script>
+    <script type="x-shader/x-fragment" id="fragmentShader">
+        precision mediump float;
+        varying vec4 fColor;
+
+        void main() {
+            gl_FragColor = fColor;
+        }
+    </script>
+
+    <script type="x-shader/x-fragment" id="lineVS">
+        attribute vec4 vColor;
+        varying vec4 fColor;
+
+        void main() {
+            gl_Position = vec4(position, 1.0);
+            fColor = vColor;
+        }
+    </script>
+
+    <script type="x-shader/x-fragment" id="lineFS">
+        precision mediump float;
+        varying vec4 fColor;
+
+        void main() {
+            gl_FragColor = fColor;
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'https://unpkg.com/three/build/three.module.js';
+
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xeeeeee);
+
+        const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, -1, 1);
+
+        // <!--renderer가 붓역할임-->
+        const renderer = new THREE.WebGLRenderer();
+        renderer.setSize(512,512);
+        document.body.appendChild(renderer.domElement);
+
+        const vertices = new Float32Array([
+            // 육각뿔의 꼭대기 (블랙) 0
+            0, -1, 0,
+            // 바닥면 정점들
+            1, 0.5, 0,                  // 빨간색 1
+            0.5, 0.5, Math.sqrt(3)/2,   // 마젠타색 2
+            -0.5, 0.5, Math.sqrt(3)/2,  // 파란색 3
+            -1, 0.5, 0,                 // 시안색 4
+            -0.5, 0.5, -Math.sqrt(3)/2, // 초록색 5
+            0.5, 0.5, -Math.sqrt(3)/2,  // 노란색 6
+
+            // 바닥의 중심 (화이트) 7
+            0, 0.5, 0 
+        ]);
+
+        const colors = new Float32Array([
+            // 육각뿔의 꼭대기 (블랙)
+            0, 0, 0, 1,
+            // 바닥면 정점 색상
+            1, 0, 0, 1, // 빨간색
+            1, 0, 1, 1, // 마젠타색
+            0, 0, 1, 1, // 파란색
+            0, 1, 1, 1, // 시안색
+            0, 1, 0, 1, // 초록색
+            1, 1, 0, 1, // 노란색 
+            // 바닥의 중심 (화이트)
+            1, 1, 1, 1
+        ]);
+        const indices = [
+            // 옆면 삼각형 인덱스, 꼭대기 정점에서 시작해서 반시계 방향으로
+            0, 1, 2,
+            0, 2, 3,
+            0, 3, 4,
+            0, 4, 5,
+            0, 5, 6,
+            0, 6, 1,
+            // 바닥면 삼각형 인덱스, 중심점에서 시작해서 반시계 방향으로
+            7, 2, 1,
+            7, 3, 2,
+            7, 4, 3,
+            7, 5, 4,
+            7, 6, 5,
+            7, 1, 6
+        ];
+
+
+        const geometry = new THREE.BufferGeometry();
+        geometry.setIndex(indices);
+        geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+        geometry.setAttribute('vColor', new THREE.Float32BufferAttribute(colors, 4));
+       
+        const material = new THREE.ShaderMaterial({
+            uniforms: {
+                theta: {value: [0,0,0]},
+            },
+            vertexShader: document.getElementById("vertexShader").textContent,
+            fragmentShader: document.getElementById("fragmentShader").textContent,
+        });
+        const mesh = new THREE.Mesh(geometry, material);
+
+        // mesh.renderOrder = 0; //렌더 우선순위 지정 숫자 높을수록 위에 그려짐
+        scene.add(mesh);
+
+        const lineVertices = new Float32Array([
+            0, 0, 0,
+            1, 0, 0,
+            0, 0, 0,
+            0, 1, 0,
+            0, 0, 0,
+            0, 0, 1,
+        ]);
+
+        const lineColors = new Float32Array([
+            1, 0, 0, 1,
+            1, 0, 0, 1,
+            0, 1, 0, 1,
+            0, 1, 0, 1,
+            0, 0, 1, 1,
+            0, 0, 1, 1,
+        ]);
+
+
+        const lineGeometry = new THREE.BufferGeometry();
+        lineGeometry.setAttribute('position', new THREE.Float32BufferAttribute(lineVertices, 3));
+        lineGeometry.setAttribute('vColor', new THREE.Float32BufferAttribute(lineColors, 4));
+
+        const lineMaterial = new THREE.ShaderMaterial({
+            vertexShader: document.getElementById("lineVS").textContent,
+            fragmentShader: document.getElementById("lineFS").textContent
+        });
+
+        const line = new THREE.Line(lineGeometry, lineMaterial);
+        scene.add(line);
+
+        var isAnimating = true;
+
+        var axis =2;
+        document.getElementById("xButton").onclick = function() {
+            axis =0;
+        };
+        document.getElementById("yButton").onclick = function() {
+            axis =1;
+        };
+        document.getElementById("zButton").onclick = function() {
+            axis =2;
+        };
+
+        var angles = [0, 0, 0];
+
+        const stopInput = document.getElementById("toggleButton");
+        stopInput.addEventListener('click', function() {
+            isAnimating = !isAnimating; 
+            if (isAnimating) {
+                animate();
+                stopInput.textContent = "Stop rotation"
+            }
+            else {
+                stopInput.textContent = "Start rotation"
+            }
+          
+        });
+
+        function animate() {
+            if (!isAnimating) return;
+            requestAnimationFrame(animate);
+
+            angles[axis] += 0.05;
+            material.uniforms.theta.value = angles;
+
+            renderer.render(scene, camera); //마지막에 그려야지! 그러니까 마지막에 위치
+
+            
+        }
+        animate();
+
+    </script>
+    
+    
+</body>
+</html>

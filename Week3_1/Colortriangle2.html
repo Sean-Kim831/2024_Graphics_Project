@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<head>
+    <meta charset="utf-8"> 
+    <title>20195123 김동현 - Colortriangle</title>
+</head>
+<body>
+    <!-- varying vec4 fColor는 정점 셰이더와 프래그먼트 셰이더 사이에서 공유되는 데이터를 나타내지만,
+    두 셰이더 내에서의 "역할"과 "컨텍스트"는 다릅니다. 그래서 완전히 똑같은 변수라고 말하기보다는,
+    두 셰이더 사이에서 데이터를 공유하는 매커니즘을 제공하는 변수라고 이해하는 것이 더 정확합니다. -->
+
+
+    <script type="x-shader/x-vertex" id="vertexShader">
+        attribute vec4 vColor;
+        varying vec4 fColor;
+        void main() {
+            gl_Position = vec4(position, 1.0);
+            fColor = vColor;
+        }
+    </script>
+    <script type="x-shader/x-fragment" id="fragmentShader">
+        varying vec4 fColor;
+        void main() {
+            gl_FragColor = fColor;
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'https://unpkg.com/three/build/three.module.js';
+
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xeeeeee);
+
+        const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+
+        // <!--renderer가 붓역할임-->
+        const renderer = new THREE.WebGLRenderer();
+        renderer.setSize(512,512);
+        document.body.appendChild(renderer.domElement);
+
+        const vertices = new Float32Array([
+            //   -0.5, -0.5,  0.0,
+            //   0.5,  -0.5,  0.0,
+            //   0.0,   0.5,  0.0
+            -0.5,  -0.5, 0.0,
+            0.5, -0.5, 0.0,
+             0.5,  0.5, 0.0,
+            -0.5,  0.5, 0.0,
+            
+
+        ]);
+
+        const colors = new Float32Array([
+            1.0, 0.0, 0.0, 1.0,
+            0.0, 1.0, 0.0, 1.0,
+            0.0, 0.0, 1.0 ,1.0,
+            1.0, 1.0, 0.0, 1.0
+        ]);
+
+        const indices = [
+            0, 1, 2,
+            0, 2, 3,
+        ];
+
+        const lineVertices = new Float32Array([
+            0.5,  0.5, 0.0,
+            -0.5, 0.5, 0.0,
+             -0.5,  -0.5, 0.0,
+            0.5,  -0.5, 0.0,
+        ]);
+
+        const lineColors = new Float32Array([
+            0.0, 0.0, 0.0, 1.0,
+            0.0, 0.0, 0.0, 1.0,
+            0.0, 0.0, 0.0, 1.0,
+            0.0, 0.0, 0.0, 1.0
+
+        ]);
+
+        const lineIndices = [
+            0, 1, 2, 3, 0
+        ];
+
+
+        const geometry = new THREE.BufferGeometry();
+        const lineGeometry = new THREE.BufferGeometry();
+
+        geometry.setIndex(indices);
+        lineGeometry.setIndex(lineIndices);
+
+        geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+        geometry.setAttribute('vColor', new THREE.Float32BufferAttribute(colors, 4));
+        lineGeometry.setAttribute('position', new THREE.Float32BufferAttribute(lineVertices, 3));
+        lineGeometry.setAttribute('vColor', new THREE.Float32BufferAttribute(lineColors, 4));
+
+        // const material = new THREE.MeshBasicMaterial({ color: 0xff0000});
+     
+        const material = new THREE.ShaderMaterial({
+            vertexShader: document.getElementById("vertexShader").textContent,
+            fragmentShader: document.getElementById("fragmentShader").textContent,
+        });
+       
+
+        // const lineMaterial = new THREE.ShaderMaterial({
+        //     vertexShader: document.getElementById("vertexShader").textContent,
+        //     fragmentShader: document.getElementById("fragmentShader").textContent
+        // });
+        const line = new THREE.Line(lineGeometry, material);
+        line.renderOrder = 1;
+
+        const mesh = new THREE.Mesh(geometry, material);
+
+        mesh.renderOrder = 0; //렌더 우선순위 지정 숫자 높을수록 위에 그려짐
+        scene.add(mesh);
+
+        scene.add(line);
+
+        renderer.render(scene, camera); //마지막에 그려야지! 그러니까 마지막에 위치
+    </script>
+    
+</body>
+</html>

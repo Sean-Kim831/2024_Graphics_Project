@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>20195123 김동현 - Texture Mapping</title>
+</head>
+<body>
+    <div style="width: 512px; text-align: center;">
+        Subdivision Level : <span id="levelValue">1</span> <input type="range" id="level" value="1" min="1" max="5" step="1"> (MAX : 5)
+    </div>
+    <script type="x-shader/x-vertex" id="EnvVS">
+   
+        varying vec3 fNormal, fViewPos;
+
+        void main() {
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+
+            fNormal = normalize(normalMatrix * normal);
+            fViewPos = (modelViewMatrix * vec4(position, 1.0)).xyz;
+        }
+    </script>
+    <script type="x-shader/x-fragment" id="EnvFS">
+        precision mediump float;
+
+        varying vec3 fNormal, fViewPos;
+        uniform samplerCube textImage;
+
+        void main() {
+            vec3 N = normalize(fNormal);
+            vec3 V = normalize(-fViewPos);
+            vec3 R = reflect(V, N);
+            
+            gl_FragColor = textureCube(textImage, R);
+        }
+    </script>
+    <script type="importmap">
+        {
+            "imports" : {
+                "three" : "https://unpkg.com/three/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three/examples/jsm/"
+            }
+        } 
+    </script>
+    <script type="module">
+        import * as THREE from 'three';
+        import { TrackballControls } from 'three/addons/controls/TrackballControls.js';
+
+        let scene, camera, renderer, controls, phongMesh;
+        var vertices = [], fnormals = [];
+        var subLevel = 1;
+
+        init();
+        animate();
+
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0xaeaeae);
+
+            //3D ortho
+            const viewLength = 2;
+            if (window.innerWidth > window.innerHeight) {
+                var ratio = viewLength * window.innerWidth / window.innerHeight;
+                camera = new THREE.OrthographicCamera(-ratio, ratio, viewLength, -viewLength, 0, 1000);
+            } else {
+                var ratio = viewLength * window.innerHeight / window.innerWidth;
+                camera = new THREE.OrthographicCamera(-viewLength, viewLength, ratio, -ratio, 0, 1000);
+            }
+            camera.position.z = 2;
+
+            renderer = new THREE.WebGLRenderer();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+
+            controls = new TrackballControls(camera, renderer.domElement);
+
+            const phongMaterial = new THREE.ShaderMaterial({
+                uniforms: {
+                    textImage: { value: new THREE.CubeTextureLoader().load([
+                        'images/LobbyXPos.bmp', 'images/LobbyXNeg.bmp',
+                        'images/LobbyYPos.bmp', 'images/LobbyYNeg.bmp',
+                        'images/LobbyZPos.bmp', 'images/LobbyZNeg.bmp'
+                    ]) }
+                },
+                vertexShader: document.getElementById("EnvVS").textContent,
+                fragmentShader: document.getElementById("EnvFS").textContent
+            });
+
+            // tetrahedron
+            generateTetrahedron(subLevel);
+
+            let positions = new Float32Array(vertices.length * 3);
+            for (let i = 0; i < vertices.length; i++) {
+                positions[i * 3] = vertices[i].x;
+                positions[i * 3 + 1] = vertices[i].y;
+                positions[i * 3 + 2] = vertices[i].z;
+            }
+
+            let phongGeometry = new THREE.BufferGeometry();
+            phongGeometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+            phongGeometry.setAttribute('normal', new THREE.Float32BufferAttribute(positions, 3));
+
+            phongMesh = new THREE.Mesh(phongGeometry, phongMaterial);
+            scene.add(phongMesh);
+
+            function subdivide() {
+                vertices = [];
+                fnormals = [];
+                generateTetrahedron(subLevel);
+
+                var positions = new Float32Array(vertices.length * 3);
+                for (var i = 0; i < vertices.length; i++) {
+                    positions[i * 3] = vertices[i].x;
+                    positions[i * 3 + 1] = vertices[i].y;
+                    positions[i * 3 + 2] = vertices[i].z;
+                }
+
+                phongGeometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+                phongGeometry.setAttribute('normal', new THREE.Float32BufferAttribute(positions, 3));
+            }
+
+            window.addEventListener('resize', onWindowResize);
+            document.getElementById("level").onchange = function(event) {
+                subLevel = event.target.value;
+                document.getElementById("levelValue").innerText = subLevel;
+                subdivide();
+            };
+
+            subdivide(); // Initial subdivision
+        }
+
+        function onWindowResize() {
+            const viewLength = 2;
+            if (window.innerWidth > window.innerHeight) {
+                var ratio = viewLength * window.innerWidth / window.innerHeight;
+                camera.left = -ratio;
+                camera.right = ratio;
+                camera.top = viewLength;
+                camera.bottom = -viewLength;
+            } else {
+                var ratio = viewLength * window.innerHeight / window.innerWidth;
+                camera.left = -viewLength;
+                camera.right = viewLength;
+                camera.top = ratio;
+                camera.bottom = -ratio;
+            }
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            controls.handleResize();
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        function generateTetrahedron(level) {
+            var va = new THREE.Vector3(0.0, 0.0, 1.0);
+            var vb = new THREE.Vector3(0.0, 0.942809, -0.333333);
+            var vc = new THREE.Vector3(-0.816497, -0.471405, -0.333333);
+            var vd = new THREE.Vector3(0.816497, -0.471405, -0.333333);
+
+            divideTriangles(va, vb, vc, level);
+            divideTriangles(va, vc, vd, level);
+            divideTriangles(va, vd, vb, level);
+            divideTriangles(vd, vc, vb, level);
+        }
+
+        function divideTriangles(a, b, c, level) {
+            if (level > 1) {
+                var ab = new THREE.Vector3().addVectors(a, b);
+                var bc = new THREE.Vector3().addVectors(b, c);
+                var ca = new THREE.Vector3().addVectors(c, a);
+                ab.normalize();
+                bc.normalize();
+                ca.normalize();
+
+                divideTriangles(ca, a, ab, level - 1);
+                divideTriangles(ab, b, bc, level - 1);
+                divideTriangles(bc, c, ca, level - 1);
+                divideTriangles(ab, bc, ca, level - 1);
+            } else {
+                vertices.push(a);
+                vertices.push(b);
+                vertices.push(c);
+            }
+        }
+    </script>
+</body>
+</html>

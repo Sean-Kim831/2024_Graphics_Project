@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>20195123 김동현 - Test</title>
+</head>
+<body>
+    <div style="text-align: center; background-color: rgb(215,255,255);">
+        <b>A</b> and <b>B</b> to move  left and right <br>
+        <b>S</b> and <b>W</b> to move  forward and backward <br>
+
+    </div>
+    <script type="x-shader/x-vertex" id="phongTexFogVs">
+        varying vec3 fNormal, fWorldPos;
+        varying vec2 fTexCoord;
+
+        void main() {
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+
+            fNormal = normalize(normalMatrix * normal);
+            fWorldPos = (modelMatrix * vec4(position, 1.0)).xyz;
+            fTexCoord = uv;
+        }
+    </script>
+    <script type="x-shader/x-fragment" id="phongTexFogFS">
+        precision mediump float;
+
+        uniform vec3 lightDir;
+        uniform vec4 lightAmbient, lightDiffuse, lightSpecular;
+        uniform vec4 matAmbient, matDiffuse, matSpecular;
+        uniform float matShininess;
+
+        varying vec3 fNormal, fWorldPos;
+        varying vec2 fTexCoord;
+        uniform sampler2D texImage;
+        uniform vec4 fogColor;
+
+        void main() {
+            vec4 ambient = lightAmbient * matAmbient;
+
+            vec3 N = normalize(fNormal);
+            vec3 L = normalize(lightDir);
+            float kd =  max(dot(L, N), 0.0);
+            vec4 diffuse = kd * lightDiffuse * matDiffuse;
+
+            vec3 V = normalize(fWorldPos);
+            vec3 H = normalize(L + V);
+            float ks = pow(max(dot(N, H), 0.0), matShininess);
+            vec4 specular = ks * lightSpecular * matSpecular;
+
+            float fogDepth = length(cameraPosition - fWorldPos);
+            float fogFactor = smoothstep(2.0, 10.0, fogDepth);
+
+            //gl_FragColor = ambient + diffuse + specular;
+            vec4 color = (ambient + diffuse + specular) * texture2D(texImage, fTexCoord);
+            gl_FragColor = mix(color, fogColor, fogFactor);
+            gl_FragColor.a = 1.0;
+        }
+    </script>
+    <script type="x-shader/x-vertex" id="phongFogVs">
+        varying vec3 fNormal, fWorldPos;
+
+        void main() {
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+
+            fNormal = normalize(normalMatrix * normal);
+            fWorldPos = (modelMatrix * vec4(position, 1.0)).xyz;
+        }
+    </script>
+    <script type="x-shader/x-fragment" id="phongFogFS">
+        precision mediump float;
+
+        uniform vec3 lightDir;
+        uniform vec4 lightAmbient, lightDiffuse, lightSpecular;
+        uniform vec4 matAmbient, matDiffuse, matSpecular;
+        uniform float matShininess;
+
+        varying vec3 fNormal, fWorldPos;
+        uniform vec4 fogColor;
+
+        void main() {
+            vec4 ambient = lightAmbient * matAmbient;
+
+            vec3 N = normalize(fNormal);
+            vec3 L = normalize(lightDir);
+            float kd = max(dot(L, N), 0.0);
+            vec4 diffuse = kd * lightDiffuse * matDiffuse;
+
+            vec3 V = normalize(cameraPosition - fWorldPos);
+            vec3 H = normalize(L + V);
+            float ks = pow(max(dot(N, H), 0.0), matShininess);
+            vec4 specular = ks * lightSpecular * matSpecular;
+
+            float fogDepth = length(cameraPosition - fWorldPos);
+            float fogFactor = smoothstep(2.0, 10.0, fogDepth);
+
+            //gl_FragColor = ambient + diffuse + specular;
+            vec4 color = ambient + diffuse + specular;
+            gl_FragColor = mix(color, fogColor, fogFactor);
+            gl_FragColor.a = 1.0;
+        }
+    </script>
+    
+    <script type="importmap">
+        {
+            "imports" : {
+                "three" : "https://unpkg.com/three/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three/examples/jsm/"
+            }
+        } 
+    </script>
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        let scene, camera, renderer, controls;
+        let cubes = [], hexas = [], ground;
+        var lightDir = [0.0, 3.0, 0.0], angle = 0;
+        var cameraPos = new THREE.Vector3(0, 1.5, 3), cameraRotY = 0;
+        let objectPos = [];
+        const fogColor = [0, 0, 0, 1];
+ 
+        init();
+        animate();
+        function init() {
+            scene = new THREE.Scene();
+            //scene.background = new THREE.Color(0xafafaf);
+            scene.background = new THREE.Color(fogColor[0],fogColor[1],fogColor[2]);
+
+            //3D perspective viewing
+            const aspectRatio = window.innerWidth / window.innerHeight;
+            camera = new THREE.PerspectiveCamera(90, aspectRatio, 0.001, 1000)
+            camera.position.x = cameraPos.x;
+            camera.position.y = cameraPos.y;
+            camera.position.z = cameraPos.z;
+            camera.lookAt(0, 0, 0);
+
+            renderer = new THREE.WebGLRenderer();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+
+            // controls = new OrbitControls(camera, renderer.domElement);
+            // controls.maxPolarAngle = Math.PI / 2;
+
+            // 초기 카메라 위치 설정
+            const initialCameraPosition = camera.position.toArray();
+
+            //cube
+            const cube_pos = [
+                new THREE.Vector3(-0.5, -0.5, -0.5),
+                new THREE.Vector3( 0.5, -0.5, -0.5),
+                new THREE.Vector3( 0.5,  0.5, -0.5),
+                new THREE.Vector3(-0.5,  0.5, -0.5),
+                new THREE.Vector3(-0.5, -0.5,  0.5),
+                new THREE.Vector3( 0.5, -0.5,  0.5),
+                new THREE.Vector3( 0.5,  0.5,  0.5),
+                new THREE.Vector3(-0.5,  0.5,  0.5),
+            ];
+            const cube_normal = [
+                new THREE.Vector3(-0.57735, -0.57735, -0.57735),
+                new THREE.Vector3(0.57735, -0.57735, -0.57735),
+                new THREE.Vector3(0.57735, 0.57735, -0.57735),
+                new THREE.Vector3(-0.57735, 0.57735, -0.57735),
+                new THREE.Vector3(-0.57735, -0.57735, 0.57735),
+                new THREE.Vector3(0.57735, -0.57735, 0.57735),
+                new THREE.Vector3(0.57735, 0.57735, 0.57735),
+                new THREE.Vector3(-0.57735, 0.57735, 0.57735),
+            ];
+            const cube_uv = [
+                new THREE.Vector2(0, 0),
+                new THREE.Vector2(0, 1),
+                new THREE.Vector2(1, 1),
+                new THREE.Vector2(1, 0),
+            ];
+
+            let vPosition = [], vNormal = [], vTexCoord = [];
+            texQuad(1, 0, 3, 2);
+            texQuad(2, 6, 5, 1);
+            texQuad(3, 7, 6, 2);
+            texQuad(4, 7, 3, 0);
+            texQuad(5, 4, 0, 1);
+            texQuad(7, 4, 5, 6);
+
+            function texQuad(a, b, c, d) {
+                    vPosition.push(cube_pos[a]);
+                    vNormal.push(cube_normal[a]);
+                    vTexCoord.push(cube_uv[0]);
+
+                    vPosition.push(cube_pos[b]);
+                    vNormal.push(cube_normal[b]);
+                    vTexCoord.push(cube_uv[1]);
+
+                    vPosition.push(cube_pos[c]);
+                    vNormal.push(cube_normal[c]);
+                    vTexCoord.push(cube_uv[2]);
+
+                    vPosition.push(cube_pos[a]);
+                    vNormal.push(cube_normal[a]);
+                    vTexCoord.push(cube_uv[0]);
+
+                    vPosition.push(cube_pos[c]);
+                    vNormal.push(cube_normal[c]);
+                    vTexCoord.push(cube_uv[2]);
+
+                    vPosition.push(cube_pos[d]);
+                    vNormal.push(cube_normal[d]);
+                    vTexCoord.push(cube_uv[3]);
+            }
+
+            var vertices = new Float32Array(vPosition.length * 3);
+            var index = 0;
+            for(var i = 0; i < vPosition.length; i++) {
+                vertices[index++] = vPosition[i].x;
+                vertices[index++] = vPosition[i].y;
+                vertices[index++] = vPosition[i].z;
+            }
+            var normals = new Float32Array(vNormal.length * 3);
+            var index = 0;
+            for(var i = 0; i < vNormal.length; i++) {
+                normals[index++] = vNormal[i].x;
+                normals[index++] = vNormal[i].y;
+                normals[index++] = vNormal[i].z;
+            }
+            var uvs = new Float32Array(vTexCoord.length * 2);
+            index = 0;
+            for(var i = 0; i < vTexCoord.length; i++) {
+                uvs[index++] = vTexCoord[i].x;
+                uvs[index++] = vTexCoord[i].y;
+            }
+
+            const geometry = new THREE.BufferGeometry();
+            //geometry.setIndex(indices);
+            geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+            geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+            geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+
+            const texture = new THREE.TextureLoader().load('images/crate.bmp');
+            const texMaterial = new THREE.ShaderMaterial({
+                uniforms: {
+                    lightDir: { value: lightDir },
+                    lightAmbient: { value: [0.0, 0.0, 0.0, 1.0] },
+                    lightDiffuse: { value: [1.0, 1.0, 1.0, 1.0] },
+                    lightSpecular: { value: [1.0, 1.0, 1.0, 1.0] },
+                    matAmbient: { value: [1.0, 1.0, 1.0, 1.0] },
+                    matDiffuse: { value: [1.0, 1.0, 1.0, 1.0] },
+                    matSpecular: { value: [1.0, 1.0, 1.0, 1.0] },
+                    matShininess: { value: 100 },
+                    texImage: { value: texture },
+                    fogColor: { value: fogColor },
+                },
+                vertexShader: document.getElementById("phongTexFogVs").textContent,
+                fragmentShader: document.getElementById("phongTexFogFS").textContent
+            });
+
+            //hexa-pyramid
+            const hexaVertices = new Float32Array([
+                0.0, 0.5, 0.0,
+                1.0, 0.5, 0.0,
+                0.5, 0.5, -0.866,
+                -0.5, 0.5, -0.866,
+                -1.0, 0.5, 0.0,
+                -0.5, 0.5, 0.866,
+                0.5, 0.5, 0.866,
+                0.0, -1.0, 0.0,
+            ]);
+
+            const hexaNormals = new Float32Array([
+                0.0, 1.0, 0.0,
+                1.0, 0.0, 0.0,
+                0.5, 0.0, -0.866,
+                -0.5, 0.0, -0.866,
+                -1.0, 0.0, 0.0,
+                -0.5, 0.0, 0.866,
+                0.5, 0.0, 0.866,
+                0.0, -1.0, 0.0,
+            ]);
+
+            const hexaIndices = [
+                0, 1, 2, 0, 2, 3,
+                0, 3, 4, 0, 4, 5,
+                0, 5, 6, 0, 6, 1,
+                7, 2, 1, 7, 3, 2,
+                7, 4, 3, 7, 5, 4,
+                7, 6, 5, 7, 1, 6,
+            ];
+
+            const hexaGeometry = new THREE.BufferGeometry();
+            hexaGeometry.setIndex(hexaIndices);
+            hexaGeometry.setAttribute('position', new THREE.Float32BufferAttribute(hexaVertices, 3));
+            hexaGeometry.setAttribute('normal', new THREE.Float32BufferAttribute(hexaNormals, 3));
+
+            const material = new THREE.ShaderMaterial({
+                uniforms: {
+                    lightDir: { value: lightDir },
+                    lightAmbient: { value: [0.0, 0.0, 0.0, 1.0] },
+                    lightDiffuse: { value: [1.0, 1.0, 1.0, 1.0] },
+                    lightSpecular: { value: [1.0, 1.0, 1.0, 1.0] },
+                    matAmbient: { value: [1.0, 1.0, 1.0, 1.0] },
+                    matDiffuse: { value: [1.0, 1.0, 1.0, 1.0] },
+                    matSpecular: { value: [1.0, 1.0, 1.0, 1.0] },
+                    matShininess: { value: 100 },
+                    fogColor: {value: fogColor},
+                },
+                vertexShader: document.getElementById("phongFogVs").textContent,
+                fragmentShader: document.getElementById("phongFogFS").textContent
+            });
+
+            var index = 0;
+            for (var posZ = -5; posZ < 0; posZ += 2) {
+                cubes[index] = new THREE.Mesh(geometry, texMaterial.clone());
+                //cubes[index].material.uniforms.matDiffuse.value = [1.0, 0.0, 0.0, 1.0];
+                cubes[index].rotateZ(THREE.MathUtils.degToRad(45));
+                cubes[index].position.x = 3;
+                cubes[index].position.y = 1.3;
+                cubes[index].position.z = posZ;
+                scene.add(cubes[index]);
+                
+                objectPos.push(new THREE.Vector3(3, 0, posZ));
+
+
+                hexas[index] = new THREE.Mesh(hexaGeometry, material.clone());
+                hexas[index].material.uniforms.matDiffuse.value = [0.0, 0.0, 1.0, 1.0];
+                hexas[index].rotateZ(THREE.MathUtils.degToRad(180));
+                hexas[index].position.x = 3;
+                hexas[index].position.y = -0.5;
+                hexas[index].position.z = posZ;
+                scene.add(hexas[index]);
+                index++;
+
+                cubes[index] = new THREE.Mesh(geometry, texMaterial.clone());
+                //cubes[index].material.uniforms.matDiffuse.value = [1.0, 0.0, 0.0, 1.0];
+                cubes[index].rotateZ(THREE.MathUtils.degToRad(45));
+                cubes[index].position.x = -3;
+                cubes[index].position.y = 1.3;
+                cubes[index].position.z = posZ;
+                scene.add(cubes[index]);
+
+                objectPos.push(new THREE.Vector3(-3, 0, posZ));
+
+                hexas[index] = new THREE.Mesh(hexaGeometry, material.clone());
+                hexas[index].material.uniforms.matDiffuse.value = [0.0, 0.0, 1.0, 1.0];
+                hexas[index].rotateZ(THREE.MathUtils.degToRad(180));
+                hexas[index].position.x = -3;
+                hexas[index].position.y = -0.5;
+                hexas[index].position.z = posZ;
+                scene.add(hexas[index]);
+                index++;
+            }
+
+            //ground
+            const groundVertices = new Float32Array([
+                -10, -1, -10,
+                -10, -1, 10,
+                10, -1, 10,
+                -10, -1, -10,
+                10, -1, 10,
+                10, -1, -10,
+            ]);
+            const groundNormals = new Float32Array([
+                0, 1, 0,
+                0, 1, 0,
+                0, 1, 0,
+                0, 1, 0,
+                0, 1, 0,
+                0, 1, 0,
+            ]);
+            const groundUVs = new Float32Array([
+                -10,  10,
+                -10, -10,
+                 10, -10,
+                -10,  10,
+                 10, -10,
+                 10,  10,
+            ]);
+            const groundGeometry = new THREE.BufferGeometry();
+            groundGeometry.setAttribute('position', new THREE.Float32BufferAttribute(groundVertices, 3));
+            groundGeometry.setAttribute('normal', new THREE.Float32BufferAttribute(groundNormals, 3));
+            groundGeometry.setAttribute('uv', new THREE.Float32BufferAttribute(groundUVs, 2));
+            
+            const texture2 = new THREE.TextureLoader().load('images/logo.bmp');
+            texture2.wrapS = THREE.RepeatWrapping;
+            texture2.wrapT = THREE.RepeatWrapping;
+            ground = new THREE.Mesh(groundGeometry, texMaterial.clone());
+            //ground.material.uniforms.matDiffuse.value = [0.8, 0.8, 0.8, 1.0];
+            ground.material.uniforms.texImage.value = texture2;
+            scene.add(ground);
+
+            
+
+            window.addEventListener('resize', onWindowResize);
+            window.onkeydown = function (event) {
+                const key =  String.fromCharCode(event.keyCode);
+                const axisY = new THREE.Vector3(0, 1, 0);
+                const direction = new THREE.Vector3();
+                var newX, newZ;
+                switch(key) {
+                    case 'a':
+                    case 'A':
+                        cameraRotY += 0.1;
+                        camera.rotateOnWorldAxis(axisY, 0.1);
+                        break;
+                    case 'd':
+                    case 'D':
+                        cameraRotY -= 0.1;
+                        camera.rotateOnWorldAxis(axisY, -0.1);
+                        break;
+                    case 's':
+                    case 'S':
+                        camera.getWorldDirection(direction);
+                        newX = cameraPos.x - 0.2 * direction.x;
+                        newZ = cameraPos.z - 0.2 * direction.z;
+                        if (newX > -10 && newX < 10 && newZ > -10 && newZ < 10 && !detectCollision(newX, newZ)) {
+                            camera.position.x = cameraPos.x = newX;
+                            camera.position.z = cameraPos.z = newZ;
+                        }
+                        break;
+                    case 'w':
+                    case 'W':
+                        camera.getWorldDirection(direction);
+                        newX = cameraPos.x + 0.2 * direction.x;
+                        newZ = cameraPos.z + 0.2 * direction.z;
+                        if (newX > -10 && newX < 10 && newZ > -10 && newZ < 10 && !detectCollision(newX, newZ)) {
+                            camera.position.x = cameraPos.x = newX;
+                            camera.position.z = cameraPos.z = newZ;
+                        }
+                        break;
+                }
+            }
+
+        }
+
+        function onWindowResize() {
+
+            //3d perspective viewing
+            const aspectRatio = window.innerWidth / window.innerHeight;
+            camera = new THREE.PerspectiveCamera(90, aspectRatio, 0.001, 1000)
+            camera.position.x = cameraPos.x;
+            camera.position.y = cameraPos.y;
+            camera.position.z = cameraPos.z;
+            camera.lookAt(0, 0, 0);
+            camera.rotateOnWorldAxis(new THREE.Vector3(0, 1, 0), cameraRotY);
+            camera.updateProjectionMatrix();
+
+            renderer.setSize(window.innerWidth, window.innerHeight);
+
+            // controls.dispose();
+            // controls = new OrbitControls(camera, renderer.domElement);
+            // controls.maxPolarAngle = Math.PI / 2;
+        }
+
+    
+
+      
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            angle += 0.02;
+            lightDir[0] = 3.0 * Math.sin(angle);
+            lightDir[2] = 3.0 * Math.cos(angle) + 3;
+
+            cubes.forEach((cube) => {
+                cube.rotateY(0.02);
+                cube.material.uniforms.lightDir.value = lightDir;
+            });
+
+            hexas.forEach((hexa) => {
+                hexa.material.uniforms.lightDir.value = lightDir;
+            });
+
+            ground.material.uniforms.lightDir.value = lightDir;
+
+            // controls.update();
+            renderer.render(scene, camera);
+        }
+        function detectCollision(newPosX, newPosZ) {
+            for(var index=0; index<objectPos.length; index++) {
+                if( Math.abs(newPosX - objectPos[index].x) < 1.25 && Math.abs(newPosZ - objectPos[index].z) < 1.25 )
+                    return true;
+            }
+            return false;
+        }
+
+
+    </script>
+</body>
+
+</html>

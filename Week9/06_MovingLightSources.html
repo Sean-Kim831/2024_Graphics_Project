@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>20195123 김동현 - Light</title>
+</head>
+
+<body>
+    <div style="text-align: center;">
+        <input type="radio" id="directional" name="lighting" checked>Directional Light
+        <input type="radio" id="point" name="lighting">Point Light
+        <input type="radio" id="spotlight" name="lighting">Spotlight
+    </div>
+    <script type="x-shader/x-vertex" id="vertexShader">
+        uniform vec3 kAtten, spotDir;
+        uniform vec4 lightSrc, lightAmbient, lightDiffuse, lightSpecular;
+        uniform vec4 matAmbient, matDiffuse, matSpecular;
+        uniform float matShininess, spotExp;
+
+        varying vec4 fColor;
+
+        void main() {
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            vec4 ambient = lightAmbient * matAmbient;
+
+            vec3 N = normalize(normalMatrix * normal);
+            vec3 L = normalize(lightSrc.xyz);
+
+            vec3 worldPos = (modelMatrix * vec4(position, 1.0)).xyz;
+            //vec3 lightVec = lightSrc.xyz - worldPos;
+            //vec3 L = normalize(lightVec);
+            float kd = max(dot(L, N), 0.0);
+            vec4 diffuse = kd * lightDiffuse * matDiffuse;
+            vec3 V = normalize(cameraPosition - worldPos);
+            vec3 H = normalize(L + V);
+            float ks = pow(max(dot(N, H), 0.0), matShininess);
+            vec4 specular = ks * lightSpecular * matSpecular;
+
+            //float d = length(lightVec);
+            //float atten = 1.0 / (kAtten[0] + kAtten[1]*d + kAtten[2]*d*d);
+
+            //spotlight
+            /*float spotDot = max(dot(normalize(spotDir), -L), 0.0);
+            if (spotDot > 0.0){
+                atten *= pow(spotDot, spotExp);
+            }
+            else {
+                atten = 0.0;
+            }
+            fColor = ambient + atten * (diffuse + specular); */
+
+            fColor = ambient + diffuse + specular;
+            fColor.a = 1.0;
+         
+        }
+    </script>
+    <script type="x-shader/x-fragment" id="fragmentShader">
+        precision mediump float;
+        varying vec4 fColor;
+
+        void main() {
+            gl_FragColor = fColor;
+        }
+    </script>
+    <script type="x-shader/x-vertex" id="colorVS">
+        void main() {
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+    </script>
+    <script type="x-shader/x-fragment" id="colorFS">
+        precision mediump float;
+        uniform vec4 uColor;
+
+        void main() {
+            gl_FragColor = uColor;
+        }
+    </script>
+    <script type="importmap">
+        {
+            "imports" : {
+                "three" : "https://unpkg.com/three/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three/examples/jsm/"
+            }
+        } 
+    </script>
+    <script type="module">
+        import * as THREE from 'three';
+        // import { TrackballControls } from 'three/addons/controls/TrackballControls.js';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        let scene, camera, renderer, controls;
+        let cubes = [], hexas = [], ground;
+        var lightSrc = [0.0, 3.0, 0.0, 0.0], angle = 0;
+
+        init();
+        animate();
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0xafafaf);
+
+            //3D perspective viewing
+            const aspectRatio = window.innerWidth / window.innerHeight;
+            camera = new THREE.PerspectiveCamera(90, aspectRatio, 0.001, 1000)
+            camera.position.y = 3;
+            camera.position.z = 3;
+
+            renderer = new THREE.WebGLRenderer();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+
+            controls = new OrbitControls(camera, renderer.domElement);
+            controls.maxPolarAngle = Math.PI / 2;
+
+            //cube
+            const vertices = new Float32Array([
+                -0.5, -0.5, -0.5,
+                0.5, -0.5, -0.5,
+                0.5, 0.5, -0.5,
+                -0.5, 0.5, -0.5,
+                -0.5, -0.5, 0.5,
+                0.5, -0.5, 0.5,
+                0.5, 0.5, 0.5,
+                -0.5, 0.5, 0.5,
+            ]);
+
+            const normals = new Float32Array([
+                -0.57735, -0.57735, -0.57735,
+                0.57735, -0.57735, -0.57735,
+                0.57735, 0.57735, -0.57735,
+                -0.57735, 0.57735, -0.57735,
+                -0.57735, -0.57735, 0.57735,
+                0.57735, -0.57735, 0.57735,
+                0.57735, 0.57735, 0.57735,
+                -0.57735, 0.57735, 0.57735,
+
+            ])
+
+            const indices = [
+                1, 0, 3, 1, 3, 2,
+                2, 3, 7, 2, 7, 6,
+                3, 0, 4, 3, 4, 7,
+                4, 5, 6, 4, 6, 7,
+                5, 4, 0, 5, 0, 1,
+                6, 5, 1, 6, 1, 2,
+            ];
+
+
+            const geometry = new THREE.BufferGeometry();
+            geometry.setIndex(indices);
+            geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+            geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+
+            //hexa-pyramid
+            const hexaVertices = new Float32Array([
+                0.0, 0.5, 0.0,
+                1.0, 0.5, 0.0,
+                0.5, 0.5, -0.866,
+                -0.5, 0.5, -0.866,
+                -1.0, 0.5, 0.0,
+                -0.5, 0.5, 0.866,
+                0.5, 0.5, 0.866,
+                0.0, -1.0, 0.0,
+            ]);
+
+            const hexaNormals = new Float32Array([
+                0.0, 1.0, 0.0,
+                1.0, 0.0, 0.0,
+                0.5, 0.0, -0.866,
+                -0.5, 0.0, -0.866,
+                -1.0, 0.0, 0.0,
+                -0.5, 0.0, 0.866,
+                0.5, 0.0, 0.866,
+                0.0, -1.0, 0.0,
+            ]);
+
+            const hexaIndices = [
+                0, 1, 2, 0, 2, 3,
+                0, 3, 4, 0, 4, 5,
+                0, 5, 6, 0, 6, 1,
+                7, 2, 1, 7, 3, 2,
+                7, 4, 3, 7, 5, 4,
+                7, 6, 5, 7, 1, 6,
+            ];
+
+            const hexaGeometry = new THREE.BufferGeometry();
+            hexaGeometry.setIndex(hexaIndices);
+            hexaGeometry.setAttribute('position', new THREE.Float32BufferAttribute(hexaVertices, 3));
+            hexaGeometry.setAttribute('normal', new THREE.Float32BufferAttribute(hexaNormals, 3));
+
+            const material = new THREE.ShaderMaterial({
+                uniforms: {
+                    kAtten: { value: [0.2, 0.2, 0.2] },
+                    spotDir: { value: [0.0, -1.0, 0.0] },
+                    //lightSrc: { value: [0.0, 1.0, 0.0, 0.0] },
+                    lightSrc: { value: lightSrc },
+                    lightAmbient: { value: [0.0, 0.0, 0.0, 1.0] },
+                    lightDiffuse: { value: [1.0, 1.0, 1.0, 1.0] },
+                    lightSpecular: { value: [1.0, 1.0, 1.0, 1.0] },
+                    matAmbient: { value: [1.0, 1.0, 1.0, 1.0] },
+                    matDiffuse: { value: [1.0, 1.0, 1.0, 1.0] },
+                    matSpecular: { value: [1.0, 1.0, 1.0, 1.0] },
+                    matShininess: { value: 100 },
+                    spotExp: { value: 5.0 },
+                },
+                vertexShader: document.getElementById("vertexShader").textContent,
+                fragmentShader: document.getElementById("fragmentShader").textContent,
+            });
+
+            var index = 0;
+            for (var posZ = -5; posZ < 0; posZ += 2) {
+                cubes[index] = new THREE.Mesh(geometry, material.clone());
+                cubes[index].material.uniforms.matDiffuse.value = [1.0, 0.0, 0.0, 1.0];
+                cubes[index].rotateZ(THREE.MathUtils.degToRad(45));
+                cubes[index].position.x = 3;
+                cubes[index].position.y = 1.3;
+                cubes[index].position.z = posZ;
+                scene.add(cubes[index]);
+
+                hexas[index] = new THREE.Mesh(hexaGeometry, material.clone());
+                hexas[index].material.uniforms.matDiffuse.value = [0.0, 0.0, 1.0, 1.0];
+                hexas[index].rotateZ(THREE.MathUtils.degToRad(180));
+                hexas[index].position.x = 3;
+                hexas[index].position.y = -0.5;
+                hexas[index].position.z = posZ;
+                scene.add(hexas[index]);
+                index++;
+
+                cubes[index] = new THREE.Mesh(geometry, material.clone()); // 여기를 cubes[index]로 수정해야 합니다.
+                cubes[index].material.uniforms.matDiffuse.value = [1.0, 0.0, 0.0, 1.0];
+                cubes[index].rotateZ(THREE.MathUtils.degToRad(45));
+                cubes[index].position.x = -3;
+                cubes[index].position.y = 1.3;
+                cubes[index].position.z = posZ;
+                scene.add(cubes[index]);
+
+                hexas[index] = new THREE.Mesh(hexaGeometry, material.clone());
+                hexas[index].material.uniforms.matDiffuse.value = [0.0, 0.0, 1.0, 1.0];
+                hexas[index].rotateZ(THREE.MathUtils.degToRad(180));
+                hexas[index].position.x = -3;
+                hexas[index].position.y = -0.5;
+                hexas[index].position.z = posZ;
+                scene.add(hexas[index]);
+                index++;
+            }
+
+
+            //ground
+            // const groundVertices = new Float32Array([
+            //     -10, -1, -10,
+            //     -10, -1, 10,
+            //     10, -1, 10,
+            //     -10, -1, -10,
+            //     10, -1, 10,
+            //     10, -1, -10,
+            // ]);
+            let groundVertices = new Float32Array(7200); // 800 triangles * 3 vertices * 3D = 3600
+            let groundNormals = new Float32Array(7200);
+            const groundScale = 10;
+            index = 0;
+            for(var x=-groundScale; x<groundScale; x++) {
+                for(var z=-groundScale; z<groundScale; z++) {
+                    //two triangles
+                    groundNormals[index] = 0;
+                    groundVertices[index++] = x;
+                    groundNormals[index] = 1;
+                    groundVertices[index++] = -1;
+                    groundNormals[index] = 0;
+                    groundVertices[index++] = z;
+                    groundNormals[index] = 0;
+                    groundVertices[index++] = x;
+                    groundNormals[index] = 1;
+                    groundVertices[index++] = -1;
+                    groundNormals[index] = 0;
+                    groundVertices[index++] = z+1;
+                    groundNormals[index] = 0;
+                    groundVertices[index++] = x+1;
+                    groundNormals[index] = 1;
+                    groundVertices[index++] = -1;
+                    groundNormals[index] = 0;
+                    groundVertices[index++] = z+1;
+
+                    groundNormals[index] = 0;
+                    groundVertices[index++] = x;
+                    groundNormals[index] = 1;
+                    groundVertices[index++] = -1;
+                    groundNormals[index] = 0;
+                    groundVertices[index++] = z;
+                    groundNormals[index] = 0;
+                    groundVertices[index++] = x+1;
+                    groundNormals[index] = 1;
+                    groundVertices[index++] = -1;
+                    groundNormals[index] = 0;
+                    groundVertices[index++] = z+1;
+                    groundNormals[index] = 0;
+                    groundVertices[index++] = x+1;
+                    groundNormals[index] = 1;
+                    groundVertices[index++] = -1;
+                    groundNormals[index] = 0;
+                    groundVertices[index++] = z;
+
+                }
+            }
+
+            const groundGeometry = new THREE.BufferGeometry();
+            groundGeometry.setAttribute('position', new THREE.Float32BufferAttribute(groundVertices, 3));
+            groundGeometry.setAttribute('normal', new THREE.Float32BufferAttribute(groundNormals, 3));
+            ground = new THREE.Mesh(groundGeometry, material.clone());
+            ground.material.uniforms.matDiffuse.value = [0.8, 0.8, 0.8, 1.0];
+            scene.add(ground);
+            
+            const groundMaterial = new THREE.ShaderMaterial({
+                uniforms: {
+                    uColor: { value: [0.8, 0.8, 0.8, 1] },
+                },
+                vertexShader: document.getElementById("colorVS").textContent,
+                fragmentShader: document.getElementById("colorFS").textContent
+            });
+            groundMaterial.polygonOffset = true;
+            groundMaterial.polygonOffsetFactor = 1;
+            groundMaterial.polygonOffsetUnits = 1;
+            // const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+            // scene.add(ground);
+
+            let lineVertices = new Float32Array(126); //21 lines = 42 vertice = 126 coordinates in 3D
+            //const groundScale = 10;
+            index = 0;
+            for (var x = -groundScale; x <= groundScale; x += 2) {
+                lineVertices[index++] = x;
+                lineVertices[index++] = -1;
+                lineVertices[index++] = -groundScale;
+                lineVertices[index++] = x;
+                lineVertices[index++] = -1;
+                lineVertices[index++] = groundScale;
+
+                lineVertices[index++] = x + 1;
+                lineVertices[index++] = -1;
+                lineVertices[index++] = groundScale;
+                lineVertices[index++] = x + 1;
+                lineVertices[index++] = -1;
+                lineVertices[index++] = -groundScale;
+            }
+
+            const lineGeometry1 = new THREE.BufferGeometry();
+            lineGeometry1.setAttribute('position', new THREE.Float32BufferAttribute(lineVertices, 3));
+            const line1 = new THREE.Line(lineGeometry1, groundMaterial.clone());
+            line1.material.uniforms.uColor.value = [0, 0, 0, 1.0];
+            scene.add(line1);
+
+            index = 0;
+            for (var z = -groundScale; z <= groundScale; z += 2) {
+                lineVertices[index++] = -groundScale;
+                lineVertices[index++] = -1;
+                lineVertices[index++] = z;
+                lineVertices[index++] = groundScale;
+                lineVertices[index++] = -1;
+                lineVertices[index++] = z;
+
+                lineVertices[index++] = groundScale;
+                lineVertices[index++] = -1;
+                lineVertices[index++] = z + 1;
+                lineVertices[index++] = -groundScale;
+                lineVertices[index++] = -1;
+                lineVertices[index++] = z + 1;
+            }
+
+            const lineGeometry2 = new THREE.BufferGeometry();
+            lineGeometry2.setAttribute('position', new THREE.Float32BufferAttribute(lineVertices, 3));
+            const line2 = new THREE.Line(lineGeometry2, groundMaterial.clone());
+            line2.material.uniforms.uColor.value = [0, 0, 0, 1.0];
+            scene.add(line2);
+
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        function onWindowResize() {
+            //3d perspective viewing
+            const aspectRatio = window.innerWidth / window.innerHeight;
+            camera = new THREE.PerspectiveCamera(90, aspectRatio, 0.001, 1000)
+            camera.position.y = 3;
+            camera.position.z = 3;
+            camera.updateProjectionMatrix();
+
+            renderer.setSize(window.innerWidth, window.innerHeight);
+
+            controls.dispose();
+            controls = new OrbitControls(camera, renderer.domElement);
+            controls.maxPolarAngle = Math.PI / 2;
+        }
+
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            angle += 0.02;
+            lightSrc[0] = 3.0 * Math.sin(angle);
+            lightSrc[2] = 3.0 * Math.cos(angle) + 3;
+            
+            cubes.forEach((cube) => {
+                cube.rotateY(0.02);
+                cube.material.uniforms.lightSrc.value = lightSrc;
+            });
+
+            hexas.forEach( (hexa) => {
+                hexa.material.uniforms.lightSrc.value = lightSrc;
+            });
+
+            ground.material.uniforms.lightSrc.value = lightSrc;
+
+            controls.update();
+            renderer.render(scene, camera); //마지막에 그려야지! 그러니까 마지막에 위치
+        }
+    </script>
+</body>
+
+</html>

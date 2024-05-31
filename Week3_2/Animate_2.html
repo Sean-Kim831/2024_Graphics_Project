@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<head>
+    <meta charset="utf-8"> 
+    <title>20195123 김동현 - Animate</title>
+</head>
+<body>
+    <button id="buttonDir">Change Roatation Direction</button>
+    <button id="buttonStop">Stop</button>
+    <select id="myMenu" size="4">
+        <option value="0">Spin Faster</option>
+        <option value="1">Spin Slower</option>
+        <option value="2">Make Bigger</option>
+        <option value="3">Make Smaller</option>
+    </select>
+    <div>
+        Time Interval: 10 <input id="timeSlider" type="range" min="10" max="100" step="5" value="100">100
+    </div>
+    <div style="background-color: #4b474747; width: 512px;" >**Change scene background color : Press button 'a' or 'A'</div>
+    <script type="x-shader/x-vertex" id="vertexShader">
+        attribute vec4 vColor;
+        varying vec4 fColor; 
+        uniform float theta, length;
+            
+
+        void main() {
+            //gl_Position = vec4(position, 1.0);
+            float s = length * sin(theta);
+            float c = length * cos(theta);
+            gl_Position.x = c * position.x - s * position.y;
+            gl_Position.y = s * position.x + c * position.y;
+            gl_Position.z = 0.0;
+            gl_Position.w = 1.0;
+            fColor = vColor;
+        }
+    </script>
+    <script type="x-shader/x-fragment" id="fragmentShader">
+        varying vec4 fColor;
+
+        void main() {
+            gl_FragColor = fColor;
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'https://unpkg.com/three/build/three.module.js';
+
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xeeeeee);
+
+        const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+
+        // <!--renderer가 붓역할임-->
+        const renderer = new THREE.WebGLRenderer();
+        renderer.setSize(512,512);
+        document.body.appendChild(renderer.domElement);
+
+        const vertices = new Float32Array([
+           0.0, 1.0, 0,
+           -1.0, 0.0, 0,
+           0.0, -1.0, 0,
+           1.0, 0.0, 0,
+        ]);
+
+        const colors = new Float32Array([
+            1.0, 0.0, 0.0, 1.0,
+            0.0, 1.0, 0.0, 1.0,
+            0.0, 0.0, 1.0 ,1.0,
+            1.0, 1.0, 0.0, 1.0
+        ]);
+
+        const indices = [
+            0, 1, 2,
+            0, 2, 3,
+        ];
+
+        const geometry = new THREE.BufferGeometry();
+    
+        geometry.setIndex(indices);
+
+        // 아래 attribute는 포지션이 디폴트이다
+        geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+        geometry.setAttribute('vColor', new THREE.Float32BufferAttribute(colors, 4));
+       
+        const material = new THREE.ShaderMaterial({
+            uniforms: {
+                theta: {value: 0},
+                length: {value: 0},
+            },
+            vertexShader: document.getElementById("vertexShader").textContent,
+            fragmentShader: document.getElementById("fragmentShader").textContent,
+        });
+  
+
+        const mesh = new THREE.Mesh(geometry, material);
+
+        // mesh.renderOrder = 0; //렌더 우선순위 지정 숫자 높을수록 위에 그려짐
+        scene.add(mesh);
+
+        var isAnimating = true;
+        var theta2 = 0;
+        var delay = 100;
+        var direction = true;
+        var size = 1;
+
+        const directionInput = document.getElementById("buttonDir");
+        directionInput.addEventListener('click', function() {
+            direction = !direction;
+        });
+
+
+        const myMenu = document.getElementById("myMenu");
+        myMenu.addEventListener('click', function(event) {
+            switch(event.target.value) {
+                case '0':
+                    delay *= 0.8;
+                    break;
+                case '1':
+                    delay *= 1.2;
+                    break;
+                case '2':
+                    size *= 1.1;
+                    break;
+                case '3':
+                    size *= 0.9;
+                    break;
+
+            }
+        });
+
+        const timeSlider = document.getElementById("timeSlider");
+        timeSlider.addEventListener('change', function(event) {
+            delay = event.target.value;
+        })
+
+        const stopInput = document.getElementById("buttonStop");
+        stopInput.addEventListener('click', function() {
+            isAnimating = !isAnimating; 
+            if (isAnimating) {
+                animate();
+                stopInput.textContent = "Stop"
+            }
+            else {
+                stopInput.textContent = "Start"
+            }
+          
+        });
+
+        const backcolors = [0xe6194B, 0x3cb44b, 0xffe119, 0x4363d8, 0xf58231, 0x911eb4, 0x42d4f4];
+        window.addEventListener('keydown', function(event) {
+        if (event.key == 'a' || event.key == 'A') {
+            // 랜덤한 색상 선택
+            const randomColor = backcolors[Math.floor(Math.random() * backcolors.length)];
+            scene.background = new THREE.Color(randomColor);
+        }
+        });
+
+        // window.onkeydown = function(event) {
+        //     var key = String.fromCharCode(event.keyCode);
+        //     if (key === 'a' || key === 'A') {
+        //         const randomColor = backcolors[Math.floor(Math.random() * backcolors.length)];
+        //         scene.background = new THREE.Color(randomColor);
+        //     }
+        // }
+
+
+        // const material = new THREE.ShaderMaterial({
+        //     uniforms: {
+        //         theta: {value: 0},
+        //         length: {value: 0},
+        //     },
+        //     vertexShader: document.getElementById("vertexShader").textContent,
+        //     fragmentShader: document.getElementById("fragmentShader").textContent,
+        // });
+
+        function animate() {
+                if (!isAnimating) return;
+
+                setTimeout( function() {
+                requestAnimationFrame(animate);
+
+                theta2 += (direction ? 0.1 : -0.1);
+                material.uniforms.theta.value = theta2;
+                material.uniforms.length.value = size;
+
+                renderer.render(scene, camera); //마지막에 그려야지! 그러니까 마지막에 위치
+
+            }, delay); //인터벌이기 때문에 숫자 늘어나면 느려짐
+                        //숫자 작아지면 빨라짐
+
+            
+        }
+
+
+        animate();
+    </script>
+    
+</body>
+</html>

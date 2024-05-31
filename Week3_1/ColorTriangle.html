@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<head>
+    <meta charset="utf-8"> 
+    <title>20195123 김동현 - ColorTriangle</title>
+</head>
+<body>
+    <script type="x-shader/x-vertex" id="vertexShader">
+        attribute vec4 vColor;
+        varying vec4 fColor;
+        void main() {
+            gl_Position = vec4(position, 1.0);
+            fColor = vColor;
+        }
+    </script>
+    <script type="x-shader/x-fragment" id="fragmentShader">
+        varying vec4 fColor;
+        void main() {
+            gl_FragColor = fColor;
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'https://unpkg.com/three/build/three.module.js';
+
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xeeeeee);
+
+        const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+
+        // <!--renderer가 붓역할임-->
+        const renderer = new THREE.WebGLRenderer();
+        renderer.setSize(512,512);
+        document.body.appendChild(renderer.domElement);
+
+        //큰 집 틀 모양
+        const house_vertices = new Float32Array([
+            -0.8,  -0.4, 0.0,
+            0.8, -0.4, 0.0,
+            0.8,  0.4, 0.0,
+            0.0, 0.8, 0.0,
+            -0.8,  0.4, 0.0,
+        ]);
+
+        const house_colors = new Float32Array([
+            1.0, 0.0, 1.0, 1.0,
+            1.0, 0.0, 1.0, 1.0,
+            1.0, 0.0, 1.0, 1.0,
+            1.0, 0.0, 1.0, 1.0,
+            1.0, 0.0, 1.0, 1.0,
+        ]);
+
+        const house_indices = [
+            0, 1, 4, // 집의 왼쪽 벽
+            1, 2, 4, // 집의 오른쪽 벽
+            2, 3, 4, // 지붕
+        ];
+
+        //창문
+        const window_vertices = new Float32Array([
+            -0.4, 0.2, 0.0,
+            -0.3, 0.1, 0.0,
+            -0.2, 0.2, 0.0,
+            -0.3, 0.3, 0.0,
+
+            0.2, 0.2, 0.0,
+            0.3, 0.1, 0.0,
+            0.4, 0.2, 0.0,
+            0.3, 0.3, 0.0,
+
+        ]);
+
+        const window_colors = new Float32Array([
+            1.0, 1.0, 0.0, 1.0,
+            1.0, 1.0, 0.0, 1.0,
+            1.0, 1.0, 0.0, 1.0,
+            1.0, 1.0, 0.0, 1.0,
+
+            1.0, 1.0, 0.0, 1.0,
+            1.0, 1.0, 0.0, 1.0,
+            1.0, 1.0, 0.0, 1.0,
+            1.0, 1.0, 0.0, 1.0,
+        ]);
+
+        const window_indices = [
+            0, 1, 2,
+            0, 2, 3,
+
+            4, 5, 6,
+            4, 6, 7,
+        ];
+
+        //집문
+        const door_vertices = new Float32Array([
+            -0.6, -0.4, 0.0,
+            -0.4, -0.4, 0.0,
+            -0.4, 0.0, 0.0,
+            -0.6, 0.0, 0.0,
+
+            -0.1, -0.4, 0.0,
+            0.1, -0.4, 0.0,
+            0.1, 0.0, 0.0,
+            -0.1, 0.0, 0.0,
+
+            0.4, -0.4, 0.0,
+            0.6, -0.4, 0.0,
+            0.6, 0.0, 0.0,
+            0.4, 0.0 ,0.0,
+        ]);
+
+        const door_colors = new Float32Array([
+            0.0, 0.0, 1.0, 1.0,
+            0.0, 0.0, 1.0, 1.0,
+            0.0, 0.0, 1.0, 1.0,
+            0.0, 0.0, 1.0, 1.0,
+
+            0.0, 0.0, 1.0, 1.0,
+            0.0, 0.0, 1.0, 1.0,
+            0.0, 0.0, 1.0, 1.0,
+            0.0, 0.0, 1.0, 1.0,
+            
+            0.0, 0.0, 1.0, 1.0,
+            0.0, 0.0, 1.0, 1.0,
+            0.0, 0.0, 1.0, 1.0,
+            0.0, 0.0, 1.0, 1.0,
+        ]);
+
+        const door_indices = [
+            0, 1, 2,
+            0, 2, 3,
+
+            4, 5, 6,
+            4, 6, 7,
+
+            8, 9, 10,
+            8, 10, 11,
+        ];
+
+
+        // 라인 만들기
+        const lineVertices = new Float32Array([
+            -0.8,  -0.4, 0.0,
+            0.8, -0.4, 0.0,
+            0.8,  0.4, 0.0,
+            0.0, 0.8, 0.0,
+            -0.8,  0.4, 0.0,
+        ]);
+
+        const lineColors = new Float32Array([
+            0.0, 0.0, 0.0, 1.0,
+            0.0, 0.0, 0.0, 1.0,
+            0.0, 0.0, 0.0, 1.0,
+            0.0, 0.0, 0.0, 1.0,
+            0.0, 0.0, 0.0, 1.0
+        ]);
+
+        const lineIndices = [
+            0, 1, 2, 3, 4, 0
+        ];
+
+
+
+        const geometry = new THREE.BufferGeometry();
+        const lineGeometry = new THREE.BufferGeometry();
+        const windowGeometry = new THREE.BufferGeometry();
+        const doorGeometry = new THREE.BufferGeometry();
+
+        //그려지는 인덱스 설정
+        geometry.setIndex(house_indices);
+        lineGeometry.setIndex(lineIndices);
+        windowGeometry.setIndex(window_indices);
+        doorGeometry.setIndex(door_indices);
+
+        geometry.setAttribute('position', new THREE.Float32BufferAttribute(house_vertices, 3));
+        geometry.setAttribute('vColor', new THREE.Float32BufferAttribute(house_colors, 4));
+        lineGeometry.setAttribute('position', new THREE.Float32BufferAttribute(lineVertices, 3));
+        lineGeometry.setAttribute('vColor', new THREE.Float32BufferAttribute(lineColors, 4));
+        windowGeometry.setAttribute('position', new THREE.Float32BufferAttribute(window_vertices, 3));
+        windowGeometry.setAttribute('vColor', new THREE.Float32BufferAttribute(window_colors, 4));
+        doorGeometry.setAttribute('position', new THREE.Float32BufferAttribute(door_vertices, 3));
+        doorGeometry.setAttribute('vColor', new THREE.Float32BufferAttribute(door_colors, 4));
+
+
+        // const material = new THREE.MeshBasicMaterial({ color: 0xff0000});
+     
+        const material = new THREE.ShaderMaterial({
+            vertexShader: document.getElementById("vertexShader").textContent,
+            fragmentShader: document.getElementById("fragmentShader").textContent,
+        });
+
+        const windowMaterial = new THREE.ShaderMaterial({
+            vertexShader: document.getElementById("vertexShader").textContent,
+            fragmentShader: document.getElementById("fragmentShader").textContent,
+        });
+
+        const doorMaterial = new THREE.ShaderMaterial({
+            vertexShader: document.getElementById("vertexShader").textContent,
+            fragmentShader: document.getElementById("fragmentShader").textContent,
+        });
+       
+
+        const lineMaterial = new THREE.ShaderMaterial({
+            vertexShader: document.getElementById("vertexShader").textContent,
+            fragmentShader: document.getElementById("fragmentShader").textContent
+        });
+
+        const line = new THREE.Line(lineGeometry, lineMaterial);
+        line.renderOrder = 3;
+        
+
+        const mesh = new THREE.Mesh(geometry, material);
+        mesh.renderOrder = 0; //렌더 우선순위 지정 숫자 높을수록 위에 그려짐
+
+        const windowMesh = new THREE.Mesh(windowGeometry, windowMaterial);
+        windowMesh.renderOrder = 1; //렌더 우선순위 지정 숫자 높을수록 위에 그려짐
+
+        const doorMesh = new THREE.Mesh(doorGeometry, doorMaterial);
+        doorMesh.renderOrder = 2; //렌더 우선순위 지정 숫자 높을수록 위에 그려짐
+
+
+        scene.add(mesh);
+        scene.add(windowMesh);
+        scene.add(doorMesh);
+        scene.add(line);
+
+        renderer.render(scene, camera); //마지막에 그려야지! 그러니까 마지막에 위치
+    </script>
+    
+</body>
+</html>
