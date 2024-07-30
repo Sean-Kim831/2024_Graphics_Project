@@ -1,4 +1,4 @@
-# Computer Graphics 프로젝트
+# 몰입형 보드게임 컨텐츠 모델
 
 ## 소개
 
