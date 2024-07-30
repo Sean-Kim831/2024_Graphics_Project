@@ -11,7 +11,7 @@
   - Parallax.js : 3D 깊이감 스크롤 효과
   - TWEEN.js & CANNON.js : 부드러운 트랜지션, 애니메이션 구현
 
-**깃허브 주소**: [Mirror Dimension Repository](https://github.com/Sean-Kim831/2024_Graphics_Project)
+**깃허브 주소**: [Computer Graphics Project](https://github.com/Sean-Kim831/2024_Graphics_Project)
 
 ## 프로젝트 동기
 부루마블형 보드게임 엔터테인먼트적 요소의 고수준 몰입감 수요
