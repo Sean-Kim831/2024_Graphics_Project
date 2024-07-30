@@ -13,7 +13,9 @@
 
 **깃허브 주소**: [Computer Graphics Project](https://github.com/Sean-Kim831/2024_Graphics_Project)
 
-## 프로젝트 동기
+## 프로젝트 개요
+
+**동기**:
 부루마블형 보드게임 엔터테인먼트적 요소의 고수준 몰입감 수요
 게임속 장소(말판)에 대한 실감 요소와 현장감 수요
 
