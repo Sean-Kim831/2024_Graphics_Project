@@ -6,9 +6,7 @@
 **플랫폼**: 웹
 **기술스택**: HTML, CSS, JavaScript
 **라이브러리 및 프레임워크**
-  - jquery : 이벤트 핸들링 및 애니메이션 구현
   - Three.js : 3D 모델링 및 인터랙티브 요소 구현
-  - Parallax.js : 3D 깊이감 스크롤 효과
   - TWEEN.js & CANNON.js : 부드러운 트랜지션, 애니메이션 구현
 
 **깃허브 주소**: [Computer Graphics Project](https://github.com/Sean-Kim831/2024_Graphics_Project)
