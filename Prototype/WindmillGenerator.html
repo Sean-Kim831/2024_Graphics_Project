@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ProtoType</title>
+    <link rel="stylesheet" href="index.css">
+</head>
+<body>
+    <header>
+        <h1>Lovely Gangwon, Romantic Gangwon</h1>
+        <nav>
+            <a href="#home">Home</a>
+            <a href="#about">About</a>
+            <a href="#contact">Contact</a>
+        </nav>
+    </header>
+    <video id="background-video" autoplay loop muted>
+        <source src="videos/LandScape.mp4" type="video/mp4">
+        Your browser does not support the video tag.
+    </video>
+    <video id="video-texture" style="display:none" autoplay loop muted>
+        <source src="videos/LandScape.mp4" type="video/mp4">
+        Your browser does not support the video tag.
+    </video>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three/examples/jsm/",
+                "three/addons/geometries/": "https://unpkg.com/three/examples/jsm/geometries/"
+            }
+        }
+    </script>
+    <script type="module">
+        import * as THREE from 'three';
+        import { TrackballControls } from 'three/addons/controls/TrackballControls.js';
+
+        let scene, camera, renderer, controls, turbine;
+        const rotationSpeed = 0.01;
+
+        init();
+
+        function init() {
+            scene = new THREE.Scene();
+
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
+            camera.position.set(0, 5, 30);
+
+            renderer = new THREE.WebGLRenderer({ alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+
+            controls = new TrackballControls(camera, renderer.domElement);
+            controls.minDistance = 20;
+            controls.maxDistance = 50;
+
+            const video = document.getElementById('video-texture');
+            const videoTexture = new THREE.VideoTexture(video);
+
+            video.play().then(() => {
+                // Create turbine group
+                const turbineGroup = new THREE.Group();
+
+                // Create hub (center of blades)
+                const hubGeometry = new THREE.CylinderGeometry(0.5, 0.5, 2, 32);
+                const hubMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
+                const hub = new THREE.Mesh(hubGeometry, hubMaterial);
+                hub.rotation.z = Math.PI / 2; // Rotate hub to be horizontal
+                turbineGroup.add(hub);
+
+                // Create blades
+                const bladeGeometry = new THREE.BoxGeometry(10, 1, 0.1);
+                const bladeMaterial = new THREE.MeshBasicMaterial({ map: videoTexture });
+
+                for (let i = 0; i < 3; i++) {
+                    const blade = new THREE.Mesh(bladeGeometry, bladeMaterial);
+                    blade.position.set(5, 0, 0); // Position the blade correctly
+                    const bladePivot = new THREE.Group();
+                    bladePivot.rotation.z = (i * 120) * (Math.PI / 180); // Set the rotation for 120 degrees apart
+                    bladePivot.add(blade);
+                    turbineGroup.add(bladePivot);
+                }
+
+                turbine = turbineGroup;
+                scene.add(turbine);
+
+                // Create base pole
+                const poleGeometry = new THREE.CylinderGeometry(0.5, 0.5, 20, 32);
+                const poleMaterial = new THREE.MeshBasicMaterial({ color: 0x999999 });
+                const pole = new THREE.Mesh(poleGeometry, poleMaterial);
+                pole.position.y = -10;
+                scene.add(pole);
+
+                window.addEventListener('resize', onWindowResize);
+                animate();
+            }).catch(error => {
+                console.error('Error playing video:', error);
+            });
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            if (turbine) {
+                turbine.rotation.z += rotationSpeed;
+            }
+
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+    </script>
+    <footer>
+        <p>&copy; 2023 김동현. All rights reserved.</p>
+        <p>Contact: email@example.com</p>
+    </footer>
+</body>
+</html>

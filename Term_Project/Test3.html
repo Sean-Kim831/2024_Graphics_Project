@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>20195123 김동현 - Texture Mapping</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+        }
+
+        #menu {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(255, 255, 255, 0.8);
+            padding: 10px;
+            border-radius: 8px;
+        }
+
+        #menu label, #menu input, #menu select, #menu button {
+            display: block;
+            margin-bottom: 10px;
+        }
+
+        #menu .shape-button {
+            background-color: #333;
+            color: white;
+            border: none;
+            padding: 10px;
+            cursor: pointer;
+        }
+
+        #menu .shape-button.selected {
+            background-color: #555;
+        }
+
+        #menu p {
+            margin: 0;
+            font-size: 14px;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div id="menu">
+        <p>Select Shape:</p>
+        <button class="shape-button" data-shape="4">Tetrahedron</button>
+        <button class="shape-button" data-shape="6">Cube</button>
+        <button class="shape-button" data-shape="8">Octahedron</button>
+        <button class="shape-button" data-shape="12">Dodecahedron</button>
+        <button class="shape-button" data-shape="20">Icosahedron</button>
+
+        <label for="textureOption">Texture Option:</label>
+        <select id="textureOption">
+            <option value="image">Image</option>
+            <option value="color">Color</option>
+        </select>
+
+        <div id="textureInput">
+            <label for="texture">Upload Texture:</label>
+            <input type="file" id="texture" accept="image/*">
+        </div>
+
+        <div id="colorInput" style="display: none;">
+            <label for="color">Select Color:</label>
+            <input type="color" id="color" value="#ff0000">
+        </div>
+
+        <label for="wireframe">Wireframe:</label>
+        <input type="checkbox" id="wireframe">
+        
+        <div id="wireframeColorInput">
+            <label for="wireframeColor">Select Wireframe Color:</label>
+            <input type="color" id="wireframeColor" value="#000000">
+        </div>
+
+        <button id="generate">Generate 3D Object</button>
+    </div>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three/examples/jsm/"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { TrackballControls } from 'three/addons/controls/TrackballControls.js';
+
+        let scene, camera, renderer, controls, mesh, wireframe;
+        let texture;
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        let selectedShape = 6;
+
+        init();
+        animate();
+
+        document.querySelectorAll('.shape-button').forEach(button => {
+            button.addEventListener('click', () => {
+                selectedShape = parseInt(button.getAttribute('data-shape'));
+                document.querySelectorAll('.shape-button').forEach(btn => btn.classList.remove('selected'));
+                button.classList.add('selected');
+            });
+        });
+
+        document.getElementById('textureOption').addEventListener('change', (event) => {
+            const value = event.target.value;
+            if (value === 'image') {
+                document.getElementById('textureInput').style.display = 'block';
+                document.getElementById('colorInput').style.display = 'none';
+            } else {
+                document.getElementById('textureInput').style.display = 'none';
+                document.getElementById('colorInput').style.display = 'block';
+            }
+        });
+
+        document.getElementById('texture').addEventListener('change', (event) => {
+            loadTexture(event.target.files[0]);
+        });
+
+        document.getElementById('generate').addEventListener('click', () => {
+            createObject(selectedShape);
+        });
+
+        document.addEventListener('dblclick', onDoubleClick, false);
+
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0xaeaeae);
+
+            const viewLength = 2;
+            if (window.innerWidth > window.innerHeight) {
+                var ratio = viewLength * window.innerWidth / window.innerHeight;
+                camera = new THREE.OrthographicCamera(-ratio, ratio, viewLength, -viewLength, 0, 1000);
+            } else {
+                var ratio = viewLength * window.innerHeight / window.innerWidth;
+                camera = new THREE.OrthographicCamera(-viewLength, viewLength, ratio, -ratio, 0, 1000);
+            }
+            camera.position.z = 2;
+
+            renderer = new THREE.WebGLRenderer();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+
+            controls = new TrackballControls(camera, renderer.domElement);
+
+            createObject(selectedShape); // 기본 객체 생성
+
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        function loadTexture(file) {
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const img = new Image();
+                img.onload = function() {
+                    texture = new THREE.Texture(img);
+                    texture.needsUpdate = true;
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function createObject(sides) {
+            if (mesh) {
+                scene.remove(mesh);
+                if (wireframe) scene.remove(wireframe);
+            }
+
+            let geometry;
+            if (sides === 4) {
+                geometry = new THREE.TetrahedronGeometry(1);
+            } else if (sides === 6) {
+                geometry = new THREE.BoxGeometry(1, 1, 1);
+            } else if (sides === 8) {
+                geometry = new THREE.OctahedronGeometry(1);
+            } else if (sides === 12) {
+                geometry = new THREE.DodecahedronGeometry(1);
+            } else if (sides === 20) {
+                geometry = new THREE.IcosahedronGeometry(1);
+            }
+
+            let material;
+            const textureOption = document.getElementById('textureOption').value;
+
+            if (textureOption === 'image' && texture) {
+                material = new THREE.MeshBasicMaterial({ map: texture });
+            } else if (textureOption === 'color') {
+                const color = document.getElementById('color').value;
+                material = new THREE.MeshBasicMaterial({ color });
+            } else {
+                material = new THREE.MeshBasicMaterial({ color: 0x0077ff }); // 기본 색상
+            }
+
+            mesh = new THREE.Mesh(geometry, material);
+            mesh.userData.sides = sides;
+
+            if (document.getElementById('wireframe').checked) {
+                const wireframeGeometry = new THREE.EdgesGeometry(geometry);
+                const wireframeMaterial = new THREE.LineBasicMaterial({
+                    color: document.getElementById('wireframeColor').value
+                });
+                wireframe = new THREE.LineSegments(wireframeGeometry, wireframeMaterial);
+                wireframe.position.z += 0.001; // 테두리를 도형보다 약간 더 앞으로 이동
+                scene.add(wireframe);
+            }
+
+            if (!geometry.index) {
+                geometry.setIndex(new Array(geometry.attributes.position.count).fill(0).map((_, i) => i));
+            }
+
+            scene.add(mesh);
+        }
+
+        function onDoubleClick(event) {
+            event.preventDefault();
+
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObject(mesh);
+
+            if (intersects.length > 0) {
+                const intersectedFaceIndex = intersects[0].faceIndex;
+                const sides = mesh.userData.sides;
+                const faceCountPerSide = mesh.geometry.index.count / (sides === 6 ? 12 : 6);
+                const sideIndex = Math.floor(intersectedFaceIndex / faceCountPerSide);
+                alert(`Double-clicked on side index: ${sideIndex}`);
+            }
+        }
+
+        function onWindowResize() {
+            const viewLength = 2;
+            if (window.innerWidth > window.innerHeight) {
+                var ratio = viewLength * window.innerWidth / window.innerHeight;
+                camera = new THREE.OrthographicCamera(-ratio, ratio, viewLength, -viewLength, 0, 1000);
+            } else {
+                var ratio = viewLength * window.innerHeight / window.innerWidth;
+                camera = new THREE.OrthographicCamera(-viewLength, viewLength, ratio, -ratio, 0, 1000);
+            }
+            camera.position.z = 2;
+            camera.updateProjectionMatrix();
+
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            controls.dispose();
+            controls = new TrackballControls(camera, renderer.domElement);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+    </script>
+</body>
+</html>

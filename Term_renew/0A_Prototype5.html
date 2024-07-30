@@ -1,0 +1,1088 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Board Game</title>
+    <style>
+        @keyframes fadeOut {
+            from {
+                opacity: 1;
+            }
+
+            to {
+                opacity: 0;
+            }
+        }
+
+        @keyframes slideDown {
+            from {
+                transform: translateY(-50px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes glow {
+            from {
+                text-shadow: 0 0 10px #FFD700, 0 0 20px #FFD700, 0 0 30px #FFD700, 0 0 40px #FFD700, 0 0 50px #FFD700, 0 0 60px #FFD700, 0 0 70px #FFD700;
+            }
+
+            to {
+                text-shadow: 0 0 20px #FFBF00, 0 0 30px #FFBF00, 0 0 40px #FFBF00, 0 0 50px #FFBF00, 0 0 60px #FFBF00, 0 0 70px #FFBF00, 0 0 80px #FFBF00;
+            }
+        }
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Arial', sans-serif;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        #startScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: url('img/Start.png') no-repeat center center;
+            background-size: 800px 800px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            color: white;
+            font-size: 24px;
+            z-index: 10;
+            text-align: center;
+        }
+
+        #startScreen.hiding {
+            animation: fadeOut 2s forwards;
+        }
+
+
+        #startScreen h1 {
+            margin: 0;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 10px;
+            animation: slideDown 1s, glow 1.5s infinite alternate;
+            font-size: 48px;
+            font-weight: bold;
+            text-shadow: 0 0 10px #FFD700, 0 0 20px #FFD700, 0 0 30px #FFD700, 0 0 40px #FFD700, 0 0 50px #FFD700, 0 0 60px #FFD700, 0 0 70px #FFD700;
+            color: #FFD700;
+            letter-spacing: 2px;
+            display: inline-block;
+        }
+
+        #startButton,
+        #guideButton,
+        #restartButton {
+            padding: 15px 30px;
+            font-size: 24px;
+            background: linear-gradient(135deg, #00FF00, #008800);
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 10px;
+            margin-top: 20px;
+            transition: background 0.3s, transform 0.3s, box-shadow 0.3s;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            text-transform: uppercase;
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+
+        #startButton:hover,
+        #guideButton:hover,
+        #restartButton:hover {
+            background: linear-gradient(135deg, #00FF00, #00AA00);
+            transform: scale(1.1);
+            box-shadow: 0 6px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        #startButton:active,
+        #guideButton:active,
+        #restartButton:active {
+            background: linear-gradient(135deg, #00FF00, #006600);
+            transform: scale(1.05);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        #rollButton {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #008800;
+            color: white;
+            border: none;
+            cursor: pointer;
+            display: none;
+            /* Initially hidden */
+            border-radius: 5px;
+            transition: background-color 0.3s, transform 0.3s;
+        }
+
+        #rollButton:hover {
+            background-color: #00aa00;
+            transform: scale(1.1);
+        }
+
+        #rollButton:active {
+            background-color: #006600;
+            transform: scale(1.05);
+        }
+
+        #diceResult {
+            position: absolute;
+            top: 10px;
+            left: 150px;
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #ffffff;
+            color: black;
+            border: 1px solid #000;
+            display: none;
+            border-radius: 5px;
+        }
+
+        #instruction {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 20px;
+            font-size: 18px;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            border-radius: 10px;
+            display: none;
+            text-align: center;
+        }
+
+        #guideScreen {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 20%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.9);
+            color: black;
+            padding: 20px;
+            display: none;
+            z-index: 20;
+            overflow-y: auto;
+            box-shadow: -4px 0 6px rgba(0, 0, 0, 0.1);
+        }
+
+        #guideScreen h2 {
+            text-align: center;
+        }
+
+        #gameOverScreen {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 20px;
+            font-size: 24px;
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            border-radius: 10px;
+            display: none;
+            text-align: center;
+            z-index: 30;
+        }
+    </style>
+</head>
+<script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three/examples/jsm/"
+        }
+    }
+</script>
+
+<body>
+    <div id="startScreen">
+        <button id="startButton">Start Game</button>
+        <button id="guideButton">Guide</button>
+    </div>
+    <div id="guideScreen">
+        <h2>게임 가이드</h2>
+        <p>Welcome to the ultimate 3D board game! Here's how you play:</p>
+        <ul>
+            <li>Roll the dice to move your piece around the board.</li>
+            <li>Special tiles trigger different events.</li>
+            <li>Reach the end of the board to win the game.</li>
+        </ul>
+        <p>Good luck and have fun!</p>
+    </div>
+    <div id="gameOverScreen">
+        <h2>Game Over</h2>
+        <button id="restartButton">Restart Game</button>
+    </div>
+    <button id="rollButton">Roll Dice</button>
+    <div id="diceResult"></div>
+    <div id="instruction"></div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.umd.js"></script>
+    <script type="x-shader/x-vertex" id="vertexShader">
+        varying vec3 vNormal;
+        varying vec3 vWorldPosition;
+        varying vec2 vUv;
+
+        void main() {
+            vUv = uv;
+            vNormal = normalize(normalMatrix * normal);
+            vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+            vWorldPosition = worldPosition.xyz;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+    </script>
+    <script type="x-shader/x-fragment" id="fragmentShader">
+        precision mediump float;
+
+        varying vec3 vNormal;
+        varying vec3 vWorldPosition;
+        varying vec2 vUv;
+
+        uniform vec3 uCameraPosition; 
+        uniform vec3 kAtten, spotDir;
+        uniform vec4 lightSrc, lightAmbient, lightDiffuse, lightSpecular;
+        uniform vec4 matAmbient, matDiffuse, matSpecular;
+        uniform float matShininess, spotExp;
+        uniform bool isSpotlight;
+        uniform sampler2D texture1;
+        
+        void main() {
+            vec3 N = normalize(vNormal);
+            vec3 V = normalize(uCameraPosition - vWorldPosition);
+            vec3 L;
+            float kd, ks, atten = 1.0;
+            vec4 diffuse, specular;
+
+            vec4 texColor = texture2D(texture1, vUv);
+
+            if(lightSrc.w == 0.0) { // Directional light
+                L = normalize(lightSrc.xyz);
+            } else { // Point light or Spotlight
+                vec3 lightVec = lightSrc.xyz - vWorldPosition;
+                L = normalize(lightVec);
+                float d = length(lightVec);
+                atten = 1.0 / (kAtten[0] + kAtten[1]*d + kAtten[2]*d*d);
+
+                if(isSpotlight) {
+                    float spotDot = max(dot(normalize(spotDir), -L), 0.0);
+                    if(spotDot > 0.0) atten *= pow(spotDot, spotExp);
+                    else atten = 0.0;
+                }
+            }
+
+            kd = max(dot(L, N), 0.0);
+            diffuse = kd * lightDiffuse * texColor;
+
+            vec3 H = normalize(L + V);
+            ks = pow(max(dot(N, H), 0.0), matShininess);
+            specular = ks * lightSpecular * matSpecular;
+
+            vec4 ambient = lightAmbient * matAmbient;
+            gl_FragColor = ambient + atten * (diffuse + specular);
+            gl_FragColor.a = 1.0;
+        }
+    </script>
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+        import { STLLoader } from 'three/addons/loaders/STLLoader.js';
+        import { EXRLoader } from 'three/addons/loaders/EXRLoader.js';
+        import * as CANNON from 'https://cdn.jsdelivr.net/npm/cannon-es@0.17.1/dist/cannon-es.js';
+
+
+        console.log("Modules imported successfully.");
+
+        let gameOver = false; // 게임 오버 상태를 추적하는 변수
+
+        // Scene, Camera, Renderer 설정
+        const scene = new THREE.Scene();
+        const defaultSkybox = new THREE.Color(0xcccccc);
+        scene.background = defaultSkybox; // 기본 배경색 설정
+        const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        console.log("Scene, camera, and renderer set up.");
+
+        // 물리 엔진 설정
+        const world = new CANNON.World();
+        world.gravity.set(0, -9.82, 0); // 중력 설정
+
+        // Cannon.js 바닥 생성
+        const groundBody = new CANNON.Body({
+            mass: 0 // 바닥은 움직이지 않음
+        });
+        const groundShape = new CANNON.Plane();
+        groundBody.addShape(groundShape);
+        groundBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
+        world.addBody(groundBody);
+
+        console.log("Physics engine and ground set up.");
+
+        // 텍스처 로더 설정
+        const textureLoader = new THREE.TextureLoader();
+
+        // 타일 텍스처 경로 배열 설정 (36개의 서로 다른 텍스처 경로)
+        const tileTextures = [];
+        for (let k = 1; k <= 36; k++) {
+            tileTextures.push(textureLoader.load(`img/T${k}.png`)); // 각 파일 이름을 'Tile1.png', 'Tile2.png' 등의 형식으로 조정
+        }
+
+        // 보드 타일 생성
+        const boardSize = 10;
+        const tileSize = 1;
+        const board = new THREE.Group();
+        const borderTiles = [];
+
+        // 시계 방향으로 타일 생성
+        // 상단 테두리 생성
+        for (let i = 0; i < boardSize; i++) {
+            borderTiles.push({ x: -boardSize / 2 + i, z: -boardSize / 2 });
+        }
+        // 우측 테두리 생성
+        for (let i = 1; i < boardSize; i++) {
+            borderTiles.push({ x: boardSize / 2 - 1, z: -boardSize / 2 + i });
+        }
+        // 하단 테두리 생성
+        for (let i = boardSize - 2; i >= 0; i--) {
+            borderTiles.push({ x: -boardSize / 2 + i, z: boardSize / 2 - 1 });
+        }
+        // 좌측 테두리 생성
+        for (let i = boardSize - 2; i > 0; i--) {
+            borderTiles.push({ x: -boardSize / 2, z: -boardSize / 2 + i });
+        }
+
+        borderTiles.forEach((pos, index) => {
+            const tileGeometry = new THREE.PlaneGeometry(tileSize, tileSize);
+            const tileMaterial = new THREE.MeshBasicMaterial({ map: tileTextures[index] });
+            const tile = new THREE.Mesh(tileGeometry, tileMaterial);
+            tile.position.set(pos.x + tileSize / 2, 0.01, pos.z + tileSize / 2); // 보드 위에 살짝 떠 있도록 위치 설정
+            tile.rotation.x = -Math.PI / 2;
+            board.add(tile);
+
+            // 테두리 생성
+            const edges = new THREE.EdgesGeometry(tileGeometry);
+            const lineMaterial = new THREE.LineBasicMaterial({ color: 0x000000 });
+            const lines = new THREE.LineSegments(edges, lineMaterial);
+            lines.position.set(pos.x + tileSize / 2, 0.02, pos.z + tileSize / 2);
+            lines.rotation.x = -Math.PI / 2;
+            board.add(lines);
+
+            // 타일 인덱스 주석 추가
+            console.log(`Tile Index: ${index}, Position: (${pos.x}, ${pos.z})`);
+        });
+
+        scene.add(board);
+
+        console.log("Board with border tiles and edges set up.");
+
+        // 조명 추가
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+        scene.add(ambientLight);
+
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+        directionalLight.position.set(5, 10, 7.5).normalize();
+        scene.add(directionalLight);
+
+        console.log("Lights added.");
+
+        // 퐁 셰이딩을 위한 유니폼 변수 설정
+        const uniforms = {
+            kAtten: { value: new THREE.Vector3(0.2, 0.2, 0.2) },
+            spotDir: { value: new THREE.Vector3(0.0, -1.0, 0.0) },
+            lightSrc: { value: new THREE.Vector4(5.0, 10.0, 7.5, 0.0) },
+            lightAmbient: { value: new THREE.Vector4(0.2, 0.2, 0.2, 1.0) },
+            lightDiffuse: { value: new THREE.Vector4(1.0, 1.0, 1.0, 1.0) },
+            lightSpecular: { value: new THREE.Vector4(1.0, 1.0, 1.0, 1.0) },
+            matAmbient: { value: new THREE.Vector4(0.0, 0.0, 1.0, 1.0) },
+            matDiffuse: { value: new THREE.Vector4(0.0, 0.0, 1.0, 1.0) },
+            matSpecular: { value: new THREE.Vector4(1.0, 1.0, 1.0, 1.0) },
+            matShininess: { value: 50 },
+            spotExp: { value: 5.0 },
+            isSpotlight: { value: false },
+            uCameraPosition: { value: camera.position }
+        };
+
+        // 주사위 텍스처 설정 1-6-3-4-5-2
+        const diceTextures = [
+            textureLoader.load('img/One.png'), //1
+            textureLoader.load('img/Six.png'), //6
+            textureLoader.load('img/Three.png'), //3
+            textureLoader.load('img/Four.png'), //4
+            textureLoader.load('img/Two.png'), //5
+            textureLoader.load('img/Five.png') //2
+        ];
+
+        // 주사위 생성
+        const diceMaterials = diceTextures.map(texture => new THREE.ShaderMaterial({
+            uniforms: {
+                ...uniforms,
+                texture1: { value: texture }
+            },
+            vertexShader: document.getElementById('vertexShader').textContent,
+            fragmentShader: document.getElementById('fragmentShader').textContent
+        }));
+
+        const diceGeometry = new THREE.BoxGeometry(0.5, 0.5, 0.5);
+        const dice1 = new THREE.Mesh(diceGeometry, diceMaterials);
+        dice1.position.set(0, 1, 0);
+        scene.add(dice1);
+
+        // 유저 오브젝트 큐브 텍스처 설정 (예: 1.png, 2.png, 3.png, 4.png, 5.png, 6.png)
+        const userCubeTextures = [
+            textureLoader.load('img/BimoFront.png'),
+            textureLoader.load('img/BimoBack.png'),
+            textureLoader.load('img/BimoTop.png'),
+            textureLoader.load('img/BimoBottom.png'),
+            textureLoader.load('img/BimoLeft.png'),
+            textureLoader.load('img/BimoRight.png')
+        ];
+
+        // 유저 오브젝트 큐브 생성
+        const userCubeMaterials = userCubeTextures.map(texture => new THREE.ShaderMaterial({
+            uniforms: {
+                ...uniforms,
+                texture1: { value: texture }
+            },
+            vertexShader: document.getElementById('vertexShader').textContent,
+            fragmentShader: document.getElementById('fragmentShader').textContent
+        }));
+
+        const cubeGeometry = new THREE.BoxGeometry(1, 1.5, 1);
+        const cube = new THREE.Mesh(cubeGeometry, userCubeMaterials);
+        cube.position.set(-4.5, 0.75, -4.5); // 큐브를 보드 위 왼쪽 아래에 놓기
+        scene.add(cube);
+
+        // Cannon.js 주사위 생성
+        const diceBody1 = new CANNON.Body({
+            mass: 1,
+            shape: new CANNON.Box(new CANNON.Vec3(0.25, 0.25, 0.25))
+        });
+
+        diceBody1.position.set(0, 1, 0);
+        world.addBody(diceBody1);
+
+        console.log("Dice created.");
+
+        // 카메라 위치 설정
+        const initialCameraPosition = { x: 0, y: 20, z: 20 };
+        const targetDiceCameraPosition = { x: 0, y: 5, z: 10 };
+        camera.position.set(initialCameraPosition.x, initialCameraPosition.y, initialCameraPosition.z);
+        camera.lookAt(0, 0, 0);
+
+        // OrbitControls 설정
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true; // 감속 효과 활성화
+        controls.dampingFactor = 0.25;
+        controls.screenSpacePanning = true; // 화면 공간 패닝 허용
+        controls.minDistance = 5; // 줌 최소 거리
+        controls.maxDistance = 50; // 줌 최대 거리
+        controls.maxPolarAngle = Math.PI; // 수직 회전 각도 제한 제거
+
+        //임시방편 화면 재클릭을 통한 오류 무시
+        // 기존 이벤트 핸들러를 저장
+        const originalOnPointerDown = controls.domElement.onpointerdown;
+
+        // 새로운 이벤트 핸들러 설정
+        controls.domElement.onpointerdown = function (event) {
+            try {
+                // setPointerCapture 호출 시도
+                this.setPointerCapture(event.pointerId);
+            } catch (e) {
+                console.warn('Failed to set pointer capture:', e);
+            }
+            if (originalOnPointerDown) {
+                originalOnPointerDown.call(this, event);
+            }
+        };
+
+        // PointerLockControls 설정
+        const pointerLockControls = new PointerLockControls(camera, renderer.domElement);
+
+        let firstPersonControlsEnabled = false;
+        let originalCameraPosition = new THREE.Vector3();
+        let originalCameraLookAt = new THREE.Vector3();
+
+        // PointerLockControls 전환
+        function enableFirstPersonControls() {
+            originalCameraPosition.copy(camera.position);
+            originalCameraLookAt.copy(controls.target);
+
+            // 유저 오브젝트 큐브 위치로 카메라 이동
+            camera.position.copy(cube.position);
+            camera.position.y += 0.5; // 카메라 높이를 큐브의 중심에서 약간 위로 조정
+
+            pointerLockControls.lock();
+            firstPersonControlsEnabled = true;
+        }
+
+        // 1인칭 모드 종료
+        function disableFirstPersonControls() {
+            pointerLockControls.unlock();
+            firstPersonControlsEnabled = false;
+            camera.position.copy(originalCameraPosition);
+            controls.target.copy(originalCameraLookAt);
+        }
+
+        // PointerLockControls 이벤트
+        pointerLockControls.addEventListener('lock', () => {
+            firstPersonControlsEnabled = true;
+        });
+
+        pointerLockControls.addEventListener('unlock', () => {
+            firstPersonControlsEnabled = false;
+            camera.position.copy(originalCameraPosition);
+            controls.target.copy(originalCameraLookAt);
+        });
+
+        // UI를 통한 1인칭 시점 전환
+        document.getElementById('instruction').addEventListener('click', () => {
+            if (!firstPersonControlsEnabled) {
+                enableFirstPersonControls();
+                document.getElementById('instruction').innerText = "ESC키를 통해 원래 카메라 좌표로 돌아갈 수 있습니다.";
+            } else {
+                disableFirstPersonControls();
+                document.getElementById('instruction').style.display = 'none';
+            }
+            setTimeout(() => {
+                document.getElementById('instruction').style.display = 'none';
+            }, 4000); // 3초 후에 숨기기
+        });
+
+        console.log("Camera and controls set up.");
+
+        // 키보드 입력 처리
+        const keyState = {};
+        window.addEventListener('keydown', (event) => {
+            keyState[event.code] = true;
+        });
+        window.addEventListener('keyup', (event) => {
+            keyState[event.code] = false;
+        });
+
+        function updateCubePosition() {
+            const speed = 0.1;
+            if (keyState['KeyW'] && cube.position.z > -4.5) {
+                cube.position.z -= speed;
+            }
+            if (keyState['KeyS'] && cube.position.z < 4.5) {
+                cube.position.z += speed;
+            }
+            if (keyState['KeyA'] && cube.position.x > -4.5) {
+                cube.position.x -= speed;
+            }
+            if (keyState['KeyD'] && cube.position.x < 4.5) {
+                cube.position.x += speed;
+            }
+        }
+
+        function getDiceValue(diceBody) {
+            const faces = [
+                new CANNON.Vec3(1, 0, 0),  // +X
+                new CANNON.Vec3(-1, 0, 0), // -X
+                new CANNON.Vec3(0, 1, 0),  // +Y
+                new CANNON.Vec3(0, -1, 0), // -Y
+                new CANNON.Vec3(0, 0, 1),  // +Z
+                new CANNON.Vec3(0, 0, -1)  // -Z
+            ];
+
+            let upFaceIndex = -1;
+            let maxDot = -1;
+
+            for (let i = 0; i < faces.length; i++) {
+                const worldFace = diceBody.quaternion.vmult(faces[i]); // 주사위의 현재 회전 상태를 적용
+                const dot = worldFace.dot(new CANNON.Vec3(0, 1, 0)); // 위쪽을 향한 벡터와의 내적 계산
+
+                if (dot > maxDot) {
+                    maxDot = dot;
+                    upFaceIndex = i;
+                }
+            }
+
+            // 각 face index에 대응하는 주사위 값 (예: +Y가 3, -Y가 4 등)
+            const faceValues = [1, 6, 3, 4, 2, 5];
+
+            return faceValues[upFaceIndex];
+        }
+
+        let currentTileIndex = 0; // 현재 타일 인덱스를 저장
+        let loadedModel = null; // 로드된 모델을 저장
+
+        // 스카이박스 텍스처 로더
+        const skyboxLoader = new THREE.CubeTextureLoader();
+        const skyboxTextures = [
+            [
+                'img/UniRight.png', // 오른쪽 (Right)
+                'img/UniLeft.png', // 왼쪽 (Left)
+                'img/UniTop.png', // 위쪽 (Top)
+                'img/UniBottom.png', // 아래쪽 (Bottom)
+                'img/UniFront.png', // 앞쪽 (Front)
+                'img/UniBack.png'  // 뒤쪽 (Back)
+            ],
+            [
+                'img/TrapRight.png', // 오른쪽 (Right)
+                'img/TrapLeft.png', // 왼쪽 (Left)
+                'img/TrapTop.png', // 위쪽 (Top)
+                'img/TrapBottom.png', // 아래쪽 (Bottom)
+                'img/TrapFront.png', // 앞쪽 (Front)
+                'img/TrapBack.png'  // 뒤쪽 (Back)
+            ]
+            // 다른 텍스처 조합 추가 가능
+        ];
+
+        function changeSkybox(index, callback) {
+            const texture = skyboxLoader.load(skyboxTextures[index], () => {
+                scene.background = texture;
+                if (callback) callback();
+            });
+        }
+
+        function resetSkybox() {
+            scene.background = defaultSkybox;
+        }
+
+        // EXR 파일 경로 배열 설정
+        const hdriTextures = [
+            'img/roma.exr', // 첫 번째 EXR 파일 경로
+            'img/newyork.exr',  // 두 번째 EXR 파일 경로
+            'img/paris.exr',  // 두 번째 EXR 파일 경로
+            'img/pisa.exr',  // 두 번째 EXR 파일 경로
+            'img/island.exr',  // 두 번째 EXR 파일 경로
+            // 추가 EXR 파일 경로...
+        ];
+
+        function setHdriEnvironment(index, callback) {
+            const exrLoader = new EXRLoader();
+            exrLoader.load(hdriTextures[index], function (texture) {
+                texture.mapping = THREE.EquirectangularReflectionMapping;
+                scene.background = texture;
+                scene.environment = texture;
+                if (callback) callback();
+            });
+        }
+
+        // 모델 제거 함수
+        function removeModel(callback) {
+            if (loadedModel) {
+                // 애니메이션 설정
+                const targetPosition = { y: -5 };
+                new TWEEN.Tween(loadedModel.position)
+                    .to(targetPosition, 3000) // 3초 동안 애니메이션 수행
+                    .easing(TWEEN.Easing.Bounce.In)
+                    .onComplete(() => {
+                        scene.remove(loadedModel);
+                        loadedModel = null;
+                        if (callback) callback();
+                    })
+                    .start();
+            } else {
+                if (callback) callback();
+            }
+        }
+
+        // 환경 맵핑 초기화 함수
+        function resetEnvironment(callback) {
+            resetSkybox(); // 기본 스카이박스로 되돌림
+            scene.background = defaultSkybox;
+            scene.environment = null;
+            if (callback) callback();
+        }
+
+        const specialTiles = {
+            7: [ //로마
+                { type: 'Colosseum' },
+                { type: 'hdri', index: 0 }
+            ],
+            9: [ //블랙홀
+                { type: 'trap', steps: -8 },
+                { type: 'skybox', index: 0 }
+            ],
+            14: [ //뉴욕
+                { type: 'Statue_of_liberty' },
+                { type: 'hdri', index: 1 }
+            ],
+            18: [ //트랩
+                { type: 'trap', steps: -3 },
+                { type: 'skybox', index: 1 }
+            ],
+            22: [ //파리
+                { type: 'eiffel_tower' },
+                { type: 'hdri', index: 2 }
+            ],
+            27: [ //무인도
+                { type: 'trap'},
+                { type: 'hdri', index: 4 }
+            ],
+            33: [ //피사
+                { type: 'Tower_of_pisa' },
+                { type: 'hdri', index: 3 }
+            ],
+        };
+
+        function handleSpecialTiles(tileIndex, callback) {
+            if (specialTiles[tileIndex] !== undefined) {
+                const tileActions = specialTiles[tileIndex];
+
+                // 이터레이터를 사용하여 순차적으로 액션 수행
+                function processActions(index) {
+                    if (index >= tileActions.length) {
+                        if (callback) callback();
+                        return;
+                    }
+
+                    const action = tileActions[index];
+
+                    if (action.type === 'eiffel_tower') {
+                        load3DObject('3d_model/Eiffel_Tower.stl', () => processActions(index + 1));
+                    }
+                    else if (action.type === 'trap') {
+                        // 스카이박스 또는 HDRI를 먼저 변경하고 나서 alert 창을 띄운 후 백스텝
+                        changeSkybox(0, () => {
+                            alert("Watch Out! Oh my gosh....:()");
+                            moveCube(cube, action.steps, () => processActions(index + 1));
+                        });
+                        
+                    }
+                 
+                    else if (action.type === 'skybox') {
+                        changeSkybox(action.index, () => processActions(index + 1));
+                    } else if (action.type === 'hdri') {
+                        setHdriEnvironment(action.index, () => processActions(index + 1));
+                    } else if (action.type === 'Colosseum') {
+                        load3DObject('3d_model/Colosseum.stl', () => processActions(index + 1));
+                    } else if (action.type === 'Tower_of_pisa') {
+                        load3DObject('3d_model/Tower_of_pisa.stl', () => processActions(index + 1));
+                    } else if (action.type === 'Statue_of_liberty') {
+                        load3DObject('3d_model/Statue_of_liberty.stl', () => processActions(index + 1));
+                    } else {
+                        processActions(index + 1); // 알 수 없는 액션 타입인 경우 다음으로 넘어가기
+                    }
+                }
+
+                processActions(0); // 액션 처리 시작
+            } else {
+                if (callback) callback();
+            }
+        }
+        function rollDice() {
+            const rollButton = document.getElementById('rollButton');
+            rollButton.disabled = true; // 버튼 비활성화
+
+            removeModel(() => { // 주사위를 굴리기 전에 모델을 제거 후 콜백 함수 실행
+                resetEnvironment(() => {
+                    const diceRange = 2.5;
+                    diceBody1.position.set(Math.random() * diceRange - diceRange / 2, 5, Math.random() * diceRange - diceRange / 2);
+
+                    diceBody1.velocity.set(0, 0, 0);
+                    diceBody1.angularVelocity.set(0, 0, 0);
+
+                    diceBody1.quaternion.setFromEuler(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+
+                    diceBody1.applyImpulse(new CANNON.Vec3(0, -5, 0), new CANNON.Vec3(0, 0, 0));
+
+                    console.log("Dice rolled.");
+
+                    // 카메라 이동 애니메이션 설정
+                    const currentCameraPosition = { x: camera.position.x, y: camera.position.y, z: camera.position.z };
+
+                    new TWEEN.Tween(currentCameraPosition)
+                        .to(targetDiceCameraPosition, 1000) // 1초 동안 애니메이션 수행
+                        .easing(TWEEN.Easing.Quadratic.InOut)
+                        .onUpdate(() => {
+                            camera.position.set(currentCameraPosition.x, currentCameraPosition.y, currentCameraPosition.z);
+                            camera.lookAt(0, 0, 0); // 카메라가 항상 중앙을 바라보도록 설정
+                        })
+                        .start()
+                        .onComplete(() => {
+                            setTimeout(() => {
+                                const diceValue1 = getDiceValue(diceBody1);
+                                const totalValue = diceValue1;
+                                document.getElementById('diceResult').innerText = `Dice Roll Result: ${diceValue1}`;
+                                document.getElementById('diceResult').style.display = 'block';
+
+                                // 게임 말 이동 애니메이션
+                                moveCube(cube, totalValue, () => {
+                                    setTimeout(() => {
+                                        document.getElementById('diceResult').style.display = 'none';
+
+                                        new TWEEN.Tween(currentCameraPosition)
+                                            .to(initialCameraPosition, 1000)
+                                            .easing(TWEEN.Easing.Quadratic.InOut)
+                                            .onUpdate(() => {
+                                                camera.position.set(currentCameraPosition.x, currentCameraPosition.y, currentCameraPosition.z);
+                                                camera.lookAt(0, 0, 0);
+                                            })
+                                            .start()
+                                            .onComplete(() => {
+                                                rollButton.disabled = false; // 버튼 활성화
+
+                                                const currentTile = currentTileIndex;// 현재 타일 정보 가져오는 로직;
+
+                                                if (specialTiles.hasOwnProperty(currentTile)) {
+                                                    showFirstPersonInstruction(); // 1인칭 시점 전환 안내 UI 표시
+                                                }
+                                            });
+                                    }, 1000); // 2초 동안 주사위 결과 표시 후 카메라 이동
+                                });
+                            }, 1000); // 2초 동안 주사위 애니메이션 대기
+                        });
+                });
+            });
+        }
+
+        function moveCube(cube, steps, callback) {
+            const path = [];
+
+            // Create path around the edges of the board
+            for (let i = -4.5; i <= 4.5; i++) {
+                path.push({ x: i, z: -4.5 });
+            }
+            for (let i = -3.5; i <= 4.5; i++) {
+                path.push({ x: 4.5, z: i });
+            }
+            for (let i = 3.5; i >= -4.5; i--) {
+                path.push({ x: i, z: 4.5 });
+            }
+            for (let i = 3.5; i >= -3.5; i--) {
+                path.push({ x: -4.5, z: i });
+            }
+
+            let previousDirection = new THREE.Vector3(1, 0, 0); // 초기 방향 설정 (+X 방향)
+
+            function moveToNextPosition() {
+                if (steps === 0) {
+                    if (currentTileIndex === 0) { // 원점 도착 시
+                        showGameOverScreen(); // 원점 도착 시 게임 종료 화면 표시
+                    }
+                    alert(`Current Tile Index: ${currentTileIndex}`); // 인덱스를 alert로 표시
+                    handleSpecialTiles(currentTileIndex, callback);  // 이동이 완료된 후 handleSpecialTiles 호출
+                    return;
+                }
+
+                const currentPos = new THREE.Vector3(cube.position.x, cube.position.y, cube.position.z);
+                const previousTileIndex = currentTileIndex; // 이전 타일 인덱스 저장
+                currentTileIndex = (currentTileIndex + Math.sign(steps)) % path.length;
+                if (currentTileIndex < 0) {
+                    currentTileIndex += path.length; // 음수 인덱스를 양수로 변환
+                }
+                const targetPosition = path[currentTileIndex];
+
+                // 트랩 타일에서는 게임 오버를 체크하지 않도록 변경
+                if (previousTileIndex > currentTileIndex && currentTileIndex !== 0 && !isTrapTile(previousTileIndex)) {
+                    showGameOverScreen(); // 원점을 지나쳤을 때 게임 종료 화면 표시
+                }
+
+                const nextPosition = { x: targetPosition.x, y: cube.position.y, z: targetPosition.z };
+
+                // 방향 계산
+                const direction = new THREE.Vector3().subVectors(nextPosition, currentPos).normalize();
+                const angle = Math.acos(previousDirection.dot(direction)); // 각도 계산
+
+                new TWEEN.Tween(cube.position)
+                    .to(nextPosition, 500)
+                    .easing(TWEEN.Easing.Quadratic.InOut)
+                    .onUpdate(() => {
+                        if (!firstPersonControlsEnabled) {
+                            const cameraOffset = new THREE.Vector3(0, 15, -10); // 말의 머리쪽에 위치
+                            const cameraPosition = cube.position.clone().add(cameraOffset);
+
+                            // 카메라가 말의 이동 방향을 바라보도록 설정
+                            const targetLookAt = cube.position.clone().add(new THREE.Vector3(0, 0, 1).applyQuaternion(cube.quaternion));
+
+                            camera.position.copy(cameraPosition);
+                            camera.lookAt(targetLookAt);
+                        }
+                    })
+                    .start()
+                    .onComplete(() => {
+                        if (angle > 0.1) { // 일정 각도 이상 회전해야 한다면
+                            const targetQuaternion = new THREE.Quaternion().setFromUnitVectors(previousDirection, direction);
+                            new TWEEN.Tween(cube.quaternion)
+                                .to(targetQuaternion, 250)
+                                .easing(TWEEN.Easing.Quadratic.InOut)
+                                .onUpdate(() => {
+                                    cube.quaternion.copy(targetQuaternion);
+                                })
+                                .start();
+                        }
+                        previousDirection.copy(direction); // 이전 방향 업데이트
+                        steps -= Math.sign(steps);
+                        moveToNextPosition();
+                    });
+            }
+
+
+            moveToNextPosition();
+        }
+
+        // 트랩 타일 여부를 확인하는 함수
+        function isTrapTile(tileIndex) {
+            return specialTiles[tileIndex] && specialTiles[tileIndex].some(action => action.type === 'trap');
+        }
+
+        function showGameOverScreen() {
+            gameOver = true; // 게임 오버 상태 설정
+            document.getElementById('gameOverScreen').style.display = 'block';
+        }
+
+        function hideGameOverScreen() {
+            gameOver = false; // 게임 오버 상태 해제
+            document.getElementById('gameOverScreen').style.display = 'none';
+        }
+
+        function restartGame() {
+            currentTileIndex = 0; // 타일 인덱스 초기화
+            cube.position.set(-4.5, 0.75, -4.5); // 말의 위치 초기화
+            camera.position.set(initialCameraPosition.x, initialCameraPosition.y, initialCameraPosition.z); // 카메라 위치 초기화
+            camera.lookAt(0, 0, 0); // 카메라가 중앙을 바라보도록 설정
+            hideGameOverScreen(); // 게임 종료 화면 숨기기
+            document.getElementById('startScreen').style.display = 'flex'; // 시작 화면 표시
+            document.getElementById('rollButton').style.display = 'none'; // 롤 버튼 숨기기
+        }
+
+
+        function load3DObject(modelPath, callback) {
+            const loader = new STLLoader();
+            loader.load(modelPath, function (geometry) {
+                const material = new THREE.MeshPhongMaterial({ color: 0xAAAAAA });
+                const mesh = new THREE.Mesh(geometry, material);
+
+                // 각 모델에 대한 개별 회전 및 크기 설정
+                if (modelPath.includes('Eiffel_Tower')) {
+                    mesh.rotation.set(-Math.PI / 2, 0, 0); // 에펠탑
+                    mesh.scale.set(0.1, 0.1, 0.1); // 크기 조정
+                    mesh.position.set(0, -5, 0);
+                    mesh.finalY = { y: 0.0 };
+                } else if (modelPath.includes('Colosseum')) {
+                    mesh.rotation.set(0, 0, 0); // 콜로세움 - 필요한 경우 값 조정
+                    mesh.scale.set(0.1, 0.1, 0.1); // 크기 조정
+                    mesh.position.set(0, -5, 0);
+                    mesh.finalY = { y: 0.0 };
+                } else if (modelPath.includes('Tower_of_pisa')) {
+                    mesh.rotation.set(0, 0, 0); // 피사의 사탑 - 필요한 경우 값 조정
+                    mesh.scale.set(0.5, 0.5, 0.5); // 크기 조정
+                    mesh.position.set(0, -5, 0);
+                    mesh.finalY = { y: 6.2 };
+                } else if (modelPath.includes('Statue_of_liberty')) {
+                    mesh.rotation.set(0, 0, 0); // 자유의 여신상 - 필요한 경우 값 조정
+                    mesh.scale.set(1.3, 1.3, 1.3); // 크기 조정
+                    mesh.position.set(0, -5, 0);
+                    mesh.finalY = { y: 0.0 };
+                }
+
+                scene.add(mesh);
+                loadedModel = mesh; // 로드된 모델 저장
+
+                // 애니메이션 설정
+                new TWEEN.Tween(mesh.position)
+                    .to(mesh.finalY, 5000) // 5초 동안 애니메이션 수행
+                    .easing(TWEEN.Easing.Bounce.Out)
+                    .onComplete(() => {
+                        if (callback) callback();
+                    })
+                    .start();
+
+                console.log("3D object loaded and added to the scene with animation.");
+            });
+        }
+
+        function showFirstPersonInstruction() {
+            const instruction = document.getElementById('instruction');
+            instruction.innerText = "화면클릭을통해 유저오브젝트큐브 시점으로 이동할 수 있습니다.";
+            instruction.style.display = 'block';
+
+            setTimeout(() => {
+                instruction.style.display = 'none';
+            }, 4000); // 3초 후에 숨기기
+        }
+
+        document.getElementById('rollButton').addEventListener('click', () => {
+            if (!firstPersonControlsEnabled) {
+                rollDice();
+            }
+        });
+
+        document.getElementById('startButton').addEventListener('click', () => {
+            const startScreen = document.getElementById('startScreen');
+            startScreen.classList.add('hiding'); // 'hiding' 클래스를 추가하여 fadeOut 애니메이션 적용
+
+            // 애니메이션이 완료된 후 (2초 후) 요소를 완전히 숨깁니다.
+            setTimeout(() => {
+                startScreen.style.display = 'none';
+                document.getElementById('rollButton').style.display = 'block'; // 롤 버튼 보이기
+            }, 2000); // 2초 후에 숨기기
+        });
+
+        document.getElementById('guideButton').addEventListener('click', () => {
+            const guideScreen = document.getElementById('guideScreen');
+            if (guideScreen.style.display === 'block') {
+                guideScreen.style.display = 'none';
+            } else {
+                guideScreen.style.display = 'block';
+            }
+        });
+
+        document.getElementById('restartButton').addEventListener('click', () => {
+            restartGame();
+        });
+
+
+
+
+        // 렌더링 함수
+        function animate() {
+            requestAnimationFrame(animate);
+
+            TWEEN.update(); // Tween 애니메이션 업데이트
+
+            world.step(1 / 60);
+
+            dice1.position.copy(diceBody1.position);
+            dice1.quaternion.copy(diceBody1.quaternion);
+
+            if (!firstPersonControlsEnabled) {
+                updateCubePosition();
+                controls.update(); // 필수: 업데이트
+            }
+            renderer.render(scene, camera);
+
+            // console.log("Rendering frame."); // 너무 많은 로그를 남기는 부분은 주석 처리합니다.
+        }
+        animate();
+
+        console.log("Animation started.");
+
+        // 창 크기 변경 시 카메라 및 렌더러 업데이트
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            console.log("Window resized.");
+        });
+    </script>
+</body>
+
+</html>

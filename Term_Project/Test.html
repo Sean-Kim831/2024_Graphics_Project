@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>20195123 김동현 - blending</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+        }
+
+        #menu {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(255, 255, 255, 0.8);
+            padding: 10px;
+            border-radius: 8px;
+        }
+
+        #menu label, #menu input {
+            display: block;
+            margin-bottom: 10px;
+        }
+
+        #menu button {
+            display: block;
+            background-color: #333;
+            color: white;
+            border: none;
+            padding: 10px;
+            cursor: pointer;
+        }
+
+        #menu p {
+            margin: 0;
+            font-size: 14px;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div id="menu"> 
+        <label for="shape">Select Shape:</label>
+        <input type="number" id="shape" name="shape" min="4" max="20" step="1">
+        <p>Enter<br>
+            4 for Tetrahedron <br>
+            6 for Cube, <br>
+            8 for Octahedron<br>
+            12 for Dodecahedron<br>
+            20 for Icosahedron</p>
+        <button id="create">Create 3D Object</button>
+    </div>
+
+    <script type="x-shader/x-vertex" id="alphaVS">
+        attribute vec4 vColor;
+        varying vec4 fColor;
+      
+        void main() {
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            fColor = vColor;
+        }
+    </script>
+
+    <script type="x-shader/x-fragment" id="alphaFS">
+        precision mediump float;
+        varying vec4 fColor;
+        void main() {
+            gl_FragColor = fColor;
+        }
+    </script>
+
+    <script type="importmap">
+        {
+            "imports" : {
+                "three" : "https://unpkg.com/three/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three/examples/jsm/"
+            }
+        } 
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { TrackballControls } from 'three/addons/controls/TrackballControls.js';
+
+        let scene, camera, renderer, controls, mesh;
+
+        init();
+        animate();
+
+        document.getElementById('create').addEventListener('click', () => {
+            const shape = parseInt(document.getElementById('shape').value);
+            if ([4, 6, 8, 12, 20].includes(shape)) {
+                createObject(shape);
+            } else {
+                alert('Please enter a valid number: 4, 6, 8, 12, or 20');
+            }
+        });
+
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0xaeaeae);
+
+            const viewLength = 2;
+            if (window.innerWidth > window.innerHeight) {
+                var ratio = viewLength * window.innerWidth / window.innerHeight;
+                camera = new THREE.OrthographicCamera(-ratio, ratio, viewLength, -viewLength, 0, 1000);
+            } else {
+                var ratio = viewLength * window.innerHeight / window.innerWidth;
+                camera = new THREE.OrthographicCamera(-viewLength, viewLength, ratio, -ratio, 0, 1000);
+            }
+            camera.position.z = 2;
+
+            renderer = new THREE.WebGLRenderer();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+
+            controls = new TrackballControls(camera, renderer.domElement);
+
+            createObject(4); // 기본 객체 생성
+
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        function createObject(sides) {
+            if (mesh) {
+                scene.remove(mesh);
+            }
+
+            let geometry;
+            if (sides === 4) {
+                geometry = new THREE.TetrahedronGeometry(1);
+            } else if (sides === 6) {
+                geometry = new THREE.BoxGeometry(1, 1, 1);
+            } else if (sides === 8) {
+                geometry = new THREE.OctahedronGeometry(1);
+            } else if (sides === 12) {
+                geometry = new THREE.DodecahedronGeometry(1);
+            } else if (sides === 20) {
+                geometry = new THREE.IcosahedronGeometry(1);
+            }
+
+            const material = new THREE.MeshBasicMaterial({ color: 0x0077ff, wireframe: true });
+            mesh = new THREE.Mesh(geometry, material);
+            scene.add(mesh);
+        }
+
+        function onWindowResize() {
+            const viewLength = 2;
+            if (window.innerWidth > window.innerHeight) {
+                var ratio = viewLength * window.innerWidth / window.innerHeight;
+                camera = new THREE.OrthographicCamera(-ratio, ratio, viewLength, -viewLength, 0, 1000);
+            } else {
+                var ratio = viewLength * window.innerHeight / window.innerWidth;
+                camera = new THREE.OrthographicCamera(-viewLength, viewLength, ratio, -ratio, 0, 1000);
+            }
+            camera.position.z = 2;
+            camera.updateProjectionMatrix();
+
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            controls.dispose();
+            controls = new TrackballControls(camera, renderer.domElement);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+    </script>
+</body>
+</html>

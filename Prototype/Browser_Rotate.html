@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ProtoType</title>
+    <link rel="stylesheet" href="index.css">
+</head>
+<body>
+    <header>
+        <h1>Lovely Gangwon, Romantic Gangwon</h1>
+        <nav>
+            <a href="#home">Home</a>
+            <a href="#about">About</a>
+            <a href="#contact">Contact</a>
+        </nav>
+    </header>
+    <video id="background-video" autoplay loop muted>
+        <source src="videos/LandScape.mp4" type="video/mp4">
+        Your browser does not support the video tag.
+    </video>
+    <video id="video-texture" style="display:none" autoplay loop muted>
+        <source src="videos/LandScape.mp4" type="video/mp4">
+        Your browser does not support the video tag.
+    </video>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three/examples/jsm/",
+                "three/addons/geometries/": "https://unpkg.com/three/examples/jsm/geometries/"
+            }
+        }
+    </script>
+    <script type="module">
+        import * as THREE from 'three';
+        import { TrackballControls } from 'three/addons/controls/TrackballControls.js';
+
+        let scene, camera, renderer, controls;
+        const numCubes = 20;
+        const radius = 30; // 공전 반지름
+        const cubeSize = 2; // 큐브 크기
+        const rotationSpeed = 0.0002; // 회전 속도를 조절하는 변수
+        const zoomSpeed = 0.1; // 확대 속도를 조절하는 변수
+        const targetZ = 10; // 확대 목표 위치
+
+        init();
+
+        function init() {
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
+            camera.position.z = 50;
+
+            renderer = new THREE.WebGLRenderer({ alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+
+            controls = new TrackballControls(camera, renderer.domElement);
+            controls.minDistance = 40; // 최소 거리 제한 설정
+            controls.maxDistance = 60; // 최대 거리 제한 설정
+
+            const video = document.getElementById('video-texture');
+            const videoTexture = new THREE.VideoTexture(video);
+
+            video.play().then(() => {
+                const material = new THREE.MeshBasicMaterial({ map: videoTexture });
+                const geometry = new THREE.BoxGeometry(cubeSize, cubeSize, cubeSize);
+
+                for (let i = 0; i < numCubes; i++) {
+                    const cube = new THREE.Mesh(geometry, material);
+                    cube.position.x = Math.cos((i / numCubes) * 2 * Math.PI) * radius;
+                    cube.position.y = Math.sin((i / numCubes) * 2 * Math.PI) * radius;
+                    scene.add(cube);
+                }
+
+                window.addEventListener('resize', onWindowResize);
+                document.addEventListener('dblclick', onDoubleClick, false); // 더블클릭 이벤트 리스너 추가
+                animate();
+            }).catch(error => {
+                console.error('Error playing video:', error);
+            });
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function onDoubleClick(event) {
+            event.preventDefault();
+
+            const zoomInterval = setInterval(() => {
+                camera.position.z -= zoomSpeed;
+                if (camera.position.z <= targetZ) {
+                    clearInterval(zoomInterval);
+                    window.location.href = 'test.html'; // 확대 후 이동할 링크
+                }
+            }, 16); // 약 60FPS로 업데이트
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            scene.children.forEach((child, i) => {
+                if (child.isMesh) {
+                    child.rotation.x += rotationSpeed;
+                    child.rotation.y += rotationSpeed;
+
+                    const angle = Date.now() * rotationSpeed + (i / numCubes) * 2 * Math.PI;
+                    child.position.x = Math.cos(angle) * radius;
+                    child.position.y = Math.sin(angle) * radius;
+                }
+            });
+
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+    </script>
+    <footer>
+        <p>&copy; 2023 김동현. All rights reserved.</p>
+        <p>Contact: email@example.com</p>
+    </footer>
+</body>
+</html>

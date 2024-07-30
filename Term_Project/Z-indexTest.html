@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Rectangular Albums</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+        }
+
+        #menu {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(255, 255, 255, 0.8);
+            padding: 10px;
+            border-radius: 8px;
+        }
+
+        #menu label, #menu input, #menu button {
+            display: block;
+            margin-bottom: 10px;
+        }
+
+        iframe {
+            position: absolute;
+            border: none;
+            width: 400px;
+            height: 300px;
+            transform-origin: 0 0;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body>
+    <div id="menu">
+        <label for="albumCount">Number of Albums:</label>
+        <input type="number" id="albumCount" value="5" min="1" max="10">
+        <label for="albumFiles">Album HTML Files (comma separated):</label>
+        <input type="text" id="albumFiles" value="Test2.html, Test3.html">
+        <button id="generate">Generate Albums</button>
+    </div>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three/examples/jsm/",
+                "tween": "https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.esm.js"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import TWEEN from 'tween';
+
+        let scene, camera, renderer, controls;
+        const albums = [];
+        const tweens = [];
+
+        init();
+        animate();
+
+        document.getElementById('generate').addEventListener('click', generateAlbums);
+
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0xaeaeae);
+
+            const aspect = window.innerWidth / window.innerHeight;
+            camera = new THREE.PerspectiveCamera(75, aspect, 0.1, 1000);
+            camera.position.set(5, 5, 5);
+            camera.lookAt(new THREE.Vector3(0, 0, 0));
+
+            renderer = new THREE.WebGLRenderer();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+
+            controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.25;
+            controls.screenSpacePanning = false;
+            controls.minDistance = 10;
+            controls.maxDistance = 100;
+            controls.maxPolarAngle = Math.PI / 2;
+            controls.rotateSpeed = 0.5;
+            controls.zoomSpeed = 0.5;
+            controls.panSpeed = 0.5;
+            controls.mouseButtons = {
+                LEFT: THREE.MOUSE.LEFT,
+                MIDDLE: THREE.MOUSE.MIDDLE,
+                RIGHT: null
+            };
+
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+            scene.add(ambientLight);
+
+            generateAlbums();
+            window.addEventListener('resize', onWindowResize);
+            window.addEventListener('dblclick', onDoubleClick);
+        }
+
+        function generateAlbums() {
+            albums.forEach(album => {
+                scene.remove(album.mesh);
+                document.body.removeChild(album.iframe);
+            });
+            tweens.forEach(tween => TWEEN.remove(tween));
+            albums.length = 0;
+            tweens.length = 0;
+
+            const albumCount = parseInt(document.getElementById('albumCount').value, 10);
+            const albumFiles = document.getElementById('albumFiles').value.split(',').map(file => file.trim());
+
+            for (let i = 0; i < albumCount; i++) {
+                const geometry = new THREE.BoxGeometry(8, 6, 0.5);
+                const material = new THREE.MeshStandardMaterial({ color: 0x0077ff });
+                const album = new THREE.Mesh(geometry, material);
+                album.position.set(0, 0, -i * 1.0);
+                album.rotation.y = Math.PI / 4;
+
+                const iframe = document.createElement('iframe');
+                iframe.src = albumFiles[i % albumFiles.length];
+                document.body.appendChild(iframe);
+
+                const tween = new TWEEN.Tween(album.position)
+                    .to({ y: [0.5, 0] }, 2000)
+                    .interpolation(TWEEN.Interpolation.Bezier)
+                    .repeat(Infinity)
+                    .yoyo(true)
+                    .start();
+
+                tweens.push(tween);
+                scene.add(album);
+                albums.push({ mesh: album, iframe });
+            }
+        }
+
+        function onWindowResize() {
+            const aspect = window.innerWidth / window.innerHeight;
+            camera.aspect = aspect;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            controls.update();
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            TWEEN.update();
+            controls.update();
+            renderer.render(scene, camera);
+            updateIframes();
+        }
+
+        function updateIframes() {
+            albums.forEach(({ mesh, iframe }) => {
+                const vector = new THREE.Vector3();
+                mesh.updateMatrixWorld();
+                vector.setFromMatrixPosition(mesh.matrixWorld);
+                vector.project(camera);
+
+                const x = (vector.x * 0.5 + 0.5) * window.innerWidth;
+                const y = (vector.y * -0.5 + 0.5) * window.innerHeight;
+
+                iframe.style.transform = `translate(-50%, -50%) translate(${x}px, ${y}px)`;
+                iframe.style.width = '400px';
+                iframe.style.height = '300px';
+            });
+        }
+
+        function onDoubleClick(event) {
+            const mouse = new THREE.Vector2(
+                (event.clientX / window.innerWidth) * 2 - 1,
+                -(event.clientY / window.innerHeight) * 2 + 1
+            );
+
+            const raycaster = new THREE.Raycaster();
+            raycaster.setFromCamera(mouse, camera);
+
+            const intersects = raycaster.intersectObjects(albums.map(a => a.mesh));
+
+            if (intersects.length > 0) {
+                const intersected = intersects[0].object;
+                const index = albums.findIndex(a => a.mesh === intersected);
+
+                if (index >= 0) {
+                    // Move the intersected album to the end
+                    const album = albums.splice(index, 1)[0];
+                    albums.push(album);
+
+                    // Reposition all albums
+                    albums.forEach((album, i) => {
+                        new TWEEN.Tween(album.mesh.position)
+                            .to({ z: -i * 1.0 }, 1000)
+                            .start();
+                    });
+                }
+            }
+        }
+    </script>
+</body>
+</html>

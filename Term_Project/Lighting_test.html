@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>20195123 김동현 - Texture Mapping</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+        }
+
+        #menu {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(255, 255, 255, 0.8);
+            padding: 10px;
+            border-radius: 8px;
+        }
+
+        #menu label, #menu input, #menu select, #menu button {
+            display: block;
+            margin-bottom: 10px;
+        }
+
+        #menu .shape-button {
+            background-color: #333;
+            color: white;
+            border: none;
+            padding: 10px;
+            cursor: pointer;
+        }
+
+        #menu .shape-button.selected {
+            background-color: #555;
+        }
+
+        #menu p {
+            margin: 0;
+            font-size: 14px;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div id="menu">
+        <p>Select Shape:</p>
+        <button class="shape-button" data-shape="4">Tetrahedron</button>
+        <button class="shape-button" data-shape="6">Cube</button>
+        <button class="shape-button" data-shape="8">Octahedron</button>
+        <button class="shape-button" data-shape="12">Dodecahedron</button>
+        <button class="shape-button" data-shape="20">Icosahedron</button>
+
+        <label for="textureOption">Texture Option:</label>
+        <select id="textureOption">
+            <option value="image">Image</option>
+            <option value="color">Color</option>
+        </select>
+
+        <div id="textureInput">
+            <label for="texture">Upload Texture:</label>
+            <input type="file" id="texture" accept="image/*">
+        </div>
+
+        <div id="colorInput" style="display: none;">
+            <label for="color">Select Color:</label>
+            <input type="color" id="color" value="#ff0000">
+        </div>
+
+        <label for="wireframe">Wireframe:</label>
+        <input type="checkbox" id="wireframe">
+        
+        <div id="wireframeColorInput">
+            <label for="wireframeColor">Select Wireframe Color:</label>
+            <input type="color" id="wireframeColor" value="#000000">
+        </div>
+
+        <label>Lighting Options:</label>
+        <input type="radio" id="directional" name="lighting" value="directional" checked> Directional Light
+        <input type="radio" id="point" name="lighting" value="point"> Point Light
+        <input type="radio" id="spotlight" name="lighting" value="spotlight"> Spotlight
+
+        <button id="generate">Generate 3D Object</button>
+    </div>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three/examples/jsm/"
+            }
+        }
+    </script>
+    <script type="x-shader/x-vertex" id="phongTexVS">
+        attribute vec4 vColor;
+        varying vec4 fColor;
+        varying vec3 fNormal, fViewPos;
+        varying vec2 fTexCoord;
+
+        void main() {
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+
+            fColor = vColor;
+            fNormal = normalize(normalMatrix * normal);
+            fViewPos = (modelViewMatrix * vec4(position, 1.0)).xyz;
+            fTexCoord = uv;
+        }
+    </script>
+    <script type="x-shader/x-fragment" id="phongTexFS">
+        precision mediump float;
+
+        uniform vec3 kAtten, spotDir;
+        uniform vec4 lightSrc, lightAmbient, lightDiffuse, lightSpecular;
+        uniform vec4 matAmbient, matDiffuse, matSpecular;
+        uniform float matShininess, spotExp;
+        uniform bool isSpotlight;
+
+        varying vec4 fColor;
+        varying vec3 fNormal, fViewPos;
+        varying vec2  fTexCoord;
+        uniform sampler2D textImage;
+
+        void main() {
+            vec4 ambient = lightAmbient * matAmbient;
+
+            vec3 N = normalize(fNormal);
+            vec3 V = normalize(fViewPos);
+
+            if(lightSrc.w == 0.0) {
+                vec3 L = normalize(lightSrc.xyz);
+                float kd = max(dot(L, N), 0.0);
+                vec4 diffuse = kd * lightDiffuse * matDiffuse;
+
+                vec3 H = normalize(L + V);
+                float ks = pow(max(dot(N, H), 0.0), matShininess);
+                vec4 specular = ks * lightSpecular * matSpecular;
+
+                gl_FragColor = (ambient + diffuse + specular) * texture2D(textImage, fTexCoord);
+            }
+            else { //point light
+                vec3 lightVec = lightSrc.xyz - fViewPos;
+                vec3 L  = normalize(lightVec);
+                float kd = max(dot(L, N), 0.0);
+                vec4 diffuse = kd * lightDiffuse * matDiffuse;
+
+                vec3 H  = normalize(L + V);
+                float ks = pow(max(dot(N, H), 0.0), matShininess);
+                vec4 specular = ks * lightSpecular * matSpecular;
+
+                float d = length(lightVec);
+                float atten = 1.0 / (kAtten[0] + kAtten[1]*d + kAtten[2]*d*d);
+
+                if(isSpotlight) {
+                    float spotDot = max(dot(normalize(spotDir), -L), 0.0);
+                    if(spotDot > 0.0)
+                        atten *= pow(spotDot, spotExp);
+                    else
+                        atten = 0.0;
+                }
+                gl_FragColor = (ambient + atten * (diffuse + specular)) * texture2D(textImage,fTexCoord);
+            }
+            gl_FragColor.a = 1.0;
+        }
+    </script>
+    <script type="module">
+        import * as THREE from 'three';
+        import { TrackballControls } from 'three/addons/controls/TrackballControls.js';
+
+        let scene, camera, renderer, controls, mesh, wireframe, light;
+        let texture;
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        let selectedShape = 6;
+        let lightType = 'directional';
+        var lightSrc = [-1.0, 1.0, 0.0, 0.0];
+        var isSpotlight = false;
+
+        init();
+        animate();
+
+        document.querySelectorAll('.shape-button').forEach(button => {
+            button.addEventListener('click', () => {
+                selectedShape = parseInt(button.getAttribute('data-shape'));
+                document.querySelectorAll('.shape-button').forEach(btn => btn.classList.remove('selected'));
+                button.classList.add('selected');
+            });
+        });
+
+        document.getElementById('textureOption').addEventListener('change', (event) => {
+            const value = event.target.value;
+            if (value === 'image') {
+                document.getElementById('textureInput').style.display = 'block';
+                document.getElementById('colorInput').style.display = 'none';
+            } else {
+                document.getElementById('textureInput').style.display = 'none';
+                document.getElementById('colorInput').style.display = 'block';
+            }
+        });
+
+        document.getElementById('texture').addEventListener('change', (event) => {
+            loadTexture(event.target.files[0]);
+        });
+
+        document.querySelectorAll('input[name="lighting"]').forEach(radio => {
+            radio.addEventListener('change', (event) => {
+                lightType = event.target.value;
+                updateLightType();
+            });
+        });
+
+        document.getElementById('generate').addEventListener('click', () => {
+            createObject(selectedShape);
+        });
+
+        document.addEventListener('dblclick', onDoubleClick, false);
+
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0xaeaeae);
+
+            const viewLength = 2;
+            if (window.innerWidth > window.innerHeight) {
+                var ratio = viewLength * window.innerWidth / window.innerHeight;
+                camera = new THREE.OrthographicCamera(-ratio, ratio, viewLength, -viewLength, 0, 1000);
+            } else {
+                var ratio = viewLength * window.innerHeight / window.innerWidth;
+                camera = new THREE.OrthographicCamera(-viewLength, viewLength, ratio, -ratio, 0, 1000);
+            }
+            camera.position.z = 2;
+
+            renderer = new THREE.WebGLRenderer();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio); // 추가
+            document.body.appendChild(renderer.domElement);
+
+            controls = new TrackballControls(camera, renderer.domElement);
+
+            // 기본 조명 추가
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+            scene.add(ambientLight);
+
+            createObject(selectedShape); // 기본 객체 생성
+
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        function loadTexture(file) {
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const img = new Image();
+                img.onload = function() {
+                    texture = new THREE.Texture(img);
+                    texture.needsUpdate = true;
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function createObject(sides) {
+            if (mesh) {
+                scene.remove(mesh);
+                if (wireframe) scene.remove(wireframe);
+            }
+
+            let geometry;
+            if (sides === 4) {
+                geometry = new THREE.TetrahedronGeometry(1);
+            } else if (sides === 6) {
+                geometry = new THREE.BoxGeometry(1, 1, 1);
+            } else if (sides === 8) {
+                geometry = new THREE.OctahedronGeometry(1);
+            } else if (sides === 12) {
+                geometry = new THREE.DodecahedronGeometry(1);
+            } else if (sides === 20) {
+                geometry = new THREE.IcosahedronGeometry(1);
+            }
+
+            const textureOption = document.getElementById('textureOption').value;
+
+            const uniforms = {
+                kAtten: { value: new THREE.Vector3(0.1, 0.1, 0.1) },
+                spotDir: { value: new THREE.Vector3(0.0, -1.0, -1.0) },
+                lightSrc: { value: new THREE.Vector4(...lightSrc) },
+                lightAmbient: { value: new THREE.Vector4(0.0, 0.0, 0.0, 1.0) },
+                lightDiffuse: { value: new THREE.Vector4(1.0, 1.0, 1.0, 1.0) },
+                lightSpecular: { value: new THREE.Vector4(1.0, 1.0, 1.0, 1.0) },
+                matAmbient: { value: new THREE.Vector4(1.0, 1.0, 1.0, 1.0) },
+                matDiffuse: { value: new THREE.Vector4(1.0, 1.0, 1.0, 1.0) },
+                matSpecular: { value: new THREE.Vector4(1.0, 1.0, 1.0, 1.0) },
+                matShininess: { value: 100.0 },
+                spotExp: { value: 5.0 },
+                isSpotlight: { value: isSpotlight },
+                textImage: { value: texture }
+            };
+
+            const material = new THREE.ShaderMaterial({
+                uniforms: uniforms,
+                vertexShader: document.getElementById("phongTexVS").textContent,
+                fragmentShader: document.getElementById("phongTexFS").textContent
+            });
+
+            mesh = new THREE.Mesh(geometry, material);
+            mesh.userData.sides = sides;
+
+            if (document.getElementById('wireframe').checked) {
+                const wireframeGeometry = new THREE.EdgesGeometry(geometry);
+                const wireframeMaterial = new THREE.LineBasicMaterial({
+                    color: document.getElementById('wireframeColor').value,
+                    linewidth: 2 // 테두리 굵기를 늘림
+                });
+                wireframe = new THREE.LineSegments(wireframeGeometry, wireframeMaterial);
+                wireframe.position.z += 0.001; // 테두리를 도형보다 약간 더 앞으로 이동
+                scene.add(wireframe);
+            }
+
+            updateLightType();
+
+            scene.add(mesh);
+        }
+
+        function updateLightType() {
+            if (light) scene.remove(light);
+
+            if (lightType === 'directional') {
+                light = new THREE.DirectionalLight(0xffffff, 1);
+                light.position.set(5, 5, 5);
+            } else if (lightType === 'point') {
+                light = new THREE.PointLight(0xffffff, 1, 100);
+                light.position.set(5, 5, 5);
+            } else if (lightType === 'spotlight') {
+                light = new THREE.SpotLight(0xffffff, 1);
+                light.position.set(5, 5, 5);
+                light.target = mesh;
+                light.angle = Math.PI / 4;
+            }
+
+            scene.add(light);
+            updateUniforms();
+        }
+
+        function updateUniforms() {
+            mesh.material.uniforms.lightSrc.value = new THREE.Vector4(...lightSrc);
+            mesh.material.uniforms.isSpotlight.value = isSpotlight;
+        }
+
+        function onDoubleClick(event) {
+            event.preventDefault();
+
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObject(mesh);
+
+            if (intersects.length > 0) {
+                const intersectedFaceIndex = intersects[0].faceIndex;
+                const sides = mesh.userData.sides;
+                const faceCountPerSide = mesh.geometry.index.count / (sides === 6 ? 12 : 6);
+                const sideIndex = Math.floor(intersectedFaceIndex / faceCountPerSide);
+                alert(`Double-clicked on side index: ${sideIndex}`);
+            }
+        }
+
+        function onWindowResize() {
+            const viewLength = 2;
+            if (window.innerWidth > window.innerHeight) {
+                var ratio = viewLength * window.innerWidth / window.innerHeight;
+                camera = new THREE.OrthographicCamera(-ratio, ratio, viewLength, -viewLength, 0, 1000);
+            } else {
+                var ratio = viewLength * window.innerHeight / window.innerWidth;
+                camera = new THREE.OrthographicCamera(-viewLength, viewLength, ratio, -ratio, 0, 1000);
+            }
+            camera.position.z = 2;
+            camera.updateProjectionMatrix();
+
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            controls.dispose();
+            controls = new TrackballControls(camera, renderer.domElement);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+    </script>
+</body>
+</html>

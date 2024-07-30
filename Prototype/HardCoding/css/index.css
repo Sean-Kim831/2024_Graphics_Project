@@ -1,0 +1,153 @@
+body {
+  margin: 0;
+  font-family: 'Source Sans Pro', sans-serif;
+  background-color: #f8f9fa;
+}
+
+#outer {
+  display: flex;
+}
+
+.header {
+  position: fixed;
+  right: 0;
+  width: 20%;
+  height: 100%;
+  background-color: #356ba2;
+  overflow-y: auto;
+  z-index: 1;
+  transition: width 0.3s ease-in-out;
+  padding-top: 40px;
+}
+
+.navbar {
+  padding: 0;
+  margin: 0;
+}
+
+.navbar-nav {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.nav-item {
+  margin-bottom: 20px;
+  padding-left: 10px;
+}
+
+.nav-link {
+  color: #fff;
+  display: block;
+  padding: 10px;
+  text-decoration: none;
+}
+
+.nav-link:hover {
+  background-color: #204d74;
+  color: #fff;
+}
+
+.navbar-button {
+  display: none;
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  background-color: #356ba2;
+  border: none;
+  padding: 10px;
+  z-index: 2;
+  cursor: pointer;
+}
+
+.menu_icon {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  width: 20px;
+  height: 20px;
+}
+
+.icon-bar {
+  width: 20px;
+  height: 2px;
+  background-color: #fff;
+}
+
+#content-box {
+  width: 80%;
+  transition: width 0.3s ease-in-out;
+}
+
+.section {
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-bottom: 1px solid #356ba2;
+  padding-left: 20px;
+  padding-right: 20px;
+  box-sizing: border-box;
+}
+
+.section h2 {
+  font-size: 24px; /* 원하는 폰트 크기 설정 */
+  color: #fff; /* 원하는 글씨 색 설정 */
+}
+
+.section p {
+  font-size: 16px; /* 원하는 폰트 크기 설정 */
+  color: #fff; /* 원하는 글씨 색 설정 */
+}
+
+.bg-blue-transparent {
+  background-color: rgba(53, 107, 162, 0.8);
+  padding: 20px;
+  border-radius: 10px;
+  text-align: center;
+  color: #fff;
+}
+
+.logo-fa {
+  font-size: 32px;
+}
+
+.simple {
+  font-size: 18px;
+  margin-top: 20px;
+}
+
+@media (max-width: 768px) {
+  .header {
+    display: none;
+  }
+
+  .navbar-button {
+    display: block;
+  }
+
+  .header.open {
+    display: block;
+    width: 40%;
+  }
+
+  #content-box {
+    width: 100%;
+  }
+}
+
+@media (max-height: 400px) {
+  .navbar-nav {
+    flex-direction: row;
+    flex-wrap: wrap;
+    margin-right: 10px;
+  }
+
+  .nav-item {
+    flex: 1 0 50%; /* 3행 2열을 위해 각 아이템을 50% 너비로 설정 */
+    box-sizing: border-box;
+    margin-bottom: 0; /* 아이템 간의 여백을 없앱니다 */
+    text-align: center;
+  }
+}

@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>20195123 김동현 - Test</title>
+</head>
+
+<body>
+    <button id="rollDice">Roll Dice</button>
+    <script type="x-shader/x-vertex" id="vertexShader">
+        varying vec3 vNormal;
+        varying vec3 vWorldPosition;
+
+        void main() {
+            vNormal = normalize(normalMatrix * normal);
+            vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+            vWorldPosition = worldPosition.xyz;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+    </script>
+    <script type="x-shader/x-fragment" id="fragmentShader">
+        precision mediump float;
+
+        varying vec3 vNormal;
+        varying vec3 vWorldPosition;
+        uniform vec3 uCameraPosition;
+
+        uniform vec3 kAtten, spotDir;
+        uniform vec4 lightSrc, lightAmbient, lightDiffuse, lightSpecular;
+        uniform vec4 matAmbient, matDiffuse, matSpecular;
+        uniform float matShininess, spotExp;
+        uniform bool isSpotlight;
+
+        void main() {
+            vec3 N = normalize(vNormal);
+            vec3 V = normalize(uCameraPosition - vWorldPosition);
+            vec3 L;
+            float kd, ks, atten = 1.0;
+            vec4 diffuse, specular;
+
+            vec3 lightVec = lightSrc.xyz - vWorldPosition;
+            L = normalize(lightVec);
+            float d = length(lightVec);
+            atten = 1.0 / (kAtten[0] + kAtten[1] * d + kAtten[2] * d * d);
+
+            if(isSpotlight) {
+                float spotDot = max(dot(normalize(spotDir), -L), 0.0);
+                if(spotDot > 0.0) atten *= pow(spotDot, spotExp);
+                else atten = 0.0;
+            }
+
+            kd = max(dot(L, N), 0.0);
+            diffuse = kd * lightDiffuse * matDiffuse;
+
+            vec3 H = normalize(L + V);
+            ks = pow(max(dot(N, H), 0.0), matShininess);
+            specular = ks * lightSpecular * matSpecular;
+
+            vec4 ambient = lightAmbient * matAmbient;
+            gl_FragColor = ambient + atten * (diffuse + specular);
+            gl_FragColor.a = 1.0;
+        }
+    </script>
+    <script type="x-shader/x-vertex" id="colorVS">
+        void main() {
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+    </script>
+    <script type="x-shader/x-fragment" id="colorFS">
+        precision mediump float;
+        uniform vec4 uColor;
+
+        void main() {
+            gl_FragColor = uColor;
+        }
+    </script>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three/examples/jsm/"
+            }
+        }
+    </script>
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        let scene, camera, renderer, controls, spotLight;
+        let cells = [];
+        let currentPosition = 0;
+        const boardSize = 10;
+        let isRolling = false;
+        let rollingAngle = 0;
+
+        init();
+        animate();
+
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0xafafaf);
+
+            const aspectRatio = window.innerWidth / window.innerHeight;
+            camera = new THREE.PerspectiveCamera(90, aspectRatio, 0.001, 1000)
+            camera.position.y = 5;
+            camera.position.z = 5;
+
+            renderer = new THREE.WebGLRenderer();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+
+            controls = new OrbitControls(camera, renderer.domElement);
+            controls.maxPolarAngle = Math.PI / 2;
+
+            // Ground cells
+            const cellSize = 1;
+            const cellMaterial = new THREE.MeshLambertMaterial({ color: 0xcccccc }); // Change to gray
+            for (let x = 0; x < boardSize; x++) {
+                for (let z = 0; z < boardSize; z++) {
+                    const cellGeometry = new THREE.PlaneGeometry(cellSize, cellSize);
+                    const cell = new THREE.Mesh(cellGeometry, cellMaterial);
+                    cell.position.set(x - boardSize / 2, 0, z - boardSize / 2);
+                    cell.rotation.x = -Math.PI / 2;
+                    scene.add(cell);
+                    cells.push(cell);
+                }
+            }
+
+            // Ambient light
+            const ambientLight = new THREE.AmbientLight(0x404040, 2); // brighter ambient light
+            scene.add(ambientLight);
+
+            // Spotlight
+            spotLight = new THREE.SpotLight(0xffffff, 3); // brighter spotlight
+            spotLight.angle = Math.PI / 12; // narrower spotlight angle
+            spotLight.penumbra = 0.2;
+            spotLight.decay = 2;
+            spotLight.distance = 20;
+            spotLight.position.set(0, 5, 0);
+            scene.add(spotLight);
+
+            window.addEventListener('resize', onWindowResize);
+
+            document.getElementById("rollDice").addEventListener("click", rollDice);
+        }
+
+        function rollDice() {
+            isRolling = true;
+            const diceValue = Math.floor(Math.random() * 6) + 1;
+            currentPosition = (currentPosition + diceValue) % cells.length;
+            setTimeout(() => {
+                highlightCell(currentPosition);
+                isRolling = false;
+            }, 2000);
+        }
+
+        function highlightCell(index) {
+            const cell = cells[index];
+            spotLight.position.set(cell.position.x, 5, cell.position.z);
+            spotLight.target = cell;
+        }
+
+        function onWindowResize() {
+            const aspectRatio = window.innerWidth / window.innerHeight;
+            camera.aspect = aspectRatio;
+            camera.updateProjectionMatrix();
+
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            if (!isRolling) {
+                rollingAngle += 0.01;
+                spotLight.position.set(5 * Math.cos(rollingAngle), 5, 5 * Math.sin(rollingAngle));
+            }
+
+            controls.update();
+            renderer.render(scene, camera);
+        }
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ProtoType</title>
+    <link rel="stylesheet" href="index.css">
+</head>
+<body>
+    <header>
+        <h1>Lovely Gangwon, Romantic Gangwon</h1>
+        <nav>
+            <a href="#home">Home</a>
+            <a href="#about">About</a>
+            <a href="#contact">Contact</a>
+        </nav>
+    </header>
+    <video id="background-video" autoplay loop muted>
+        <source src="videos/LandScape.mp4" type="video/mp4">
+        Your browser does not support the video tag.
+    </video>
+    <video id="video-texture" style="display:none" autoplay loop muted>
+        <source src="videos/LandScape.mp4" type="video/mp4">
+        Your browser does not support the video tag.
+    </video>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three/examples/jsm/",
+                "three/addons/geometries/": "https://unpkg.com/three/examples/jsm/geometries/"
+            }
+        } 
+    </script>
+    <script type="module">
+        import * as THREE from 'three';
+        import { TrackballControls } from 'three/addons/controls/TrackballControls.js';
+        import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+
+        let scene, camera, renderer, controls, cube;
+        let raycaster = new THREE.Raycaster();
+        let mouse = new THREE.Vector2();
+        let isRotating = true;
+
+        const links = [
+            'test.html', 'test.html', 'test.html', 'test.html',
+            'test.html', 'test.html'
+        ]; // 페이지 URL 링크
+
+        init();
+        animate();
+
+        function init() {
+            scene = new THREE.Scene();
+
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
+            camera.position.z = 8;
+
+            renderer = new THREE.WebGLRenderer({ alpha: true }); // 배경을 투명하게 설정
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+
+            controls = new TrackballControls(camera, renderer.domElement);
+            controls.minDistance = 4; // 최소 거리 제한 설정
+            controls.maxDistance = 8; // 최대 거리 제한 설정
+
+            controls.addEventListener('start', () => isRotating = false);
+            controls.addEventListener('end', () => isRotating = true);
+
+            // Create video texture
+            const video = document.getElementById('video-texture');
+            const videoTexture = new THREE.VideoTexture(video);
+
+            // Ensure the video is playing
+            video.play().then(() => {
+                // Create materials for each face of the cube
+                const videoMaterial = new THREE.MeshBasicMaterial({ map: videoTexture });
+                const materials = [
+                    videoMaterial, videoMaterial,
+                    videoMaterial, videoMaterial,
+                    videoMaterial, videoMaterial
+                ];
+
+                const geometry = new RoundedBoxGeometry(2, 2, 2, 5, 0.2); // 둥근 모서리 큐브
+                cube = new THREE.Mesh(geometry, materials);
+                scene.add(cube);
+
+                window.addEventListener('resize', onWindowResize);
+                document.addEventListener('dblclick', onDoubleClick, false); // 더블클릭 이벤트 리스너 추가
+            }).catch(error => {
+                console.error('Error playing video:', error);
+            });
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function onDoubleClick(event) {
+            event.preventDefault();
+
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects([cube]);
+
+            if (intersects.length > 0) {
+                const faceIndex = intersects[0].face.materialIndex;
+                const originalMaterial = cube.material[faceIndex]; // 원래 재질 저장
+                const tempMaterial = new THREE.MeshBasicMaterial({ color: 0x333333 });
+                cube.material[faceIndex] = tempMaterial; // 클릭 시 짙은 회색으로 변경
+
+                setTimeout(() => {
+                    cube.material[faceIndex] = originalMaterial; // 원래 재질로 복원
+                    window.location.href = links[faceIndex]; // 클릭된 면에 따라 해당 링크로 이동
+                }, 500); // 500ms 후 재질 복원 및 페이지 이동
+            }
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            if (isRotating && cube) {
+                cube.rotation.x += 0.01;
+                cube.rotation.y += 0.01;
+            }
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+    </script>
+    <footer>
+        <p>&copy; 2023 김동현. All rights reserved.</p>
+        <p>Contact: email@example.com</p>
+    </footer>
+</body>
+</html>
