@@ -1,4 +1,4 @@
-# Mirror Dimension 프로젝트
+# Computer Graphics 프로젝트
 
 ## 개요
 
